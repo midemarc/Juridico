@@ -102,3 +102,6 @@ ENV/
 
 # IDE specific
 .idea
+
+# BDD
+db.*

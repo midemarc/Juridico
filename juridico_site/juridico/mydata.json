@@ -1,0 +1,20 @@
+[
+  {
+    "model": "juridico.question",
+    "pk": 1,
+    "fields": {
+      "nom": "question_initiale",
+      "question": "Quel est votre question initiale ?",
+      "reponse_type": "t"
+    }
+  },
+  {
+    "model": "juridico.question",
+    "pk": 2,
+    "fields": {
+      "nom": "domaine_logement",
+      "question": "Est-ce que ce problème concerne votre logement ?",
+      "reponse_type": "b"
+    }
+  }
+]
