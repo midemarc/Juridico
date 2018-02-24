@@ -8,16 +8,30 @@
     <h1>Résultats</h1>
     <div class="contenu">
       <div class="directions">
-        
+        {% for direction in directions %}
+        <h2>{{direction.nom}}</h2>
+        <div>
+          {{ direction.text }}
+        </div>
+        {% end for %}
       </div>
       <div class="organismes">
-
+        {% for org in organismes %}
+        <h2>{{org.nom}}</h2>
+        <div>
+          {{ org.description }}
+        </div>
+        {% end for %}
       </div>
       <div class="documentation">
-
+        {% for doc in documentation %}
+          {{ doc }}
+        {% end for %}
       </div>
       <div class="camarades">
-
+        {% for camarade in camarades %}
+          {{ camarade }}
+        {% end for %}
       </div>
     </div>
   </body>
