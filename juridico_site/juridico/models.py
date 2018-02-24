@@ -29,7 +29,7 @@ class Reponse(models.Model):
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
     reponse = models.CharField(max_length=1024)
-    )
+
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modif = models.DateTimeField(auto_now=True)
 
