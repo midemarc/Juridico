@@ -39,16 +39,6 @@ def question(request, question_id):
         elif question.reponse_type == "b":
             form = QuestionFormBool()
 
-<<<<<<< HEAD
-        form = QuestionForm()
-    return render(request, 'question.html', {'form': form})
-
-def reponse(request):
-    cid = request.GET["cid"] if request.method == "GET" else request.POST["cid"]
-    reqid = request.GET["reqid"] if request.method == "GET" else request.POST["reqid"]
-
-    
-=======
     return render(
         request,
         'question.html',
@@ -58,4 +48,7 @@ def reponse(request):
             'form': form
         }
       )
->>>>>>> 85fc9b65f508ca5fc958435a8a85ab288542cd6f
+
+def reponse(request):
+    cid = request.GET["cid"] if request.method == "GET" else request.POST["cid"]
+    reqid = request.GET["reqid"] if request.method == "GET" else request.POST["reqid"]
