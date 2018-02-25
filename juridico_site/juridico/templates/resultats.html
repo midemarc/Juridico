@@ -1,13 +1,14 @@
 <!doctype html>
+{% load static %}
 <html>
   <head>
     <title>Juridico – Résultats</title>
-    <link rel="stylesheet" href="{static resultats.css}">
+    <link rel="stylesheet" href="{% static "resultats.css" %}">
   </head>
   <body>
     <header>
       <h1>
-        <img src="{static juridico.png}" style="height:4em">
+        <img src="{% static "juridico.png" %}" style="height:4em">
         Juridico
       </h1>
     </header>

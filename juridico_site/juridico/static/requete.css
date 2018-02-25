@@ -1,0 +1,9 @@
+body {
+  font-family: Sans-Serif;
+  text-align: center;
+}
+
+h1 img {
+    margin: 2px;
+    border: none;
+}

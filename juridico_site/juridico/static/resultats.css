@@ -1,0 +1,23 @@
+body {
+  font-family: Sans-Serif;
+}
+
+.contenu {
+    margin: 0.7cm;
+}
+
+.directions {
+    border: 1px solid #CCCCCC;
+    box-shadow: 0px 0px 2px 2px #CCCCCC;
+}
+
+.ressources div {
+    display: inline-block;
+    border: 1px solid #CCCCCC;
+    box-shadow: 0px 0px 2px 2px #CCCCCC;
+}
+
+h1 img {
+    margin: 2px;
+    border: none;
+}

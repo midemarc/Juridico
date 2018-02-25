@@ -24,8 +24,9 @@ def question0(request):
     requete.save()
 
     prochaine_question = met.desc2domaine(reqcontent["description_cas"])
+    print("test question0")
 
-    return redirect("question%d" % prochaine_question)
+    return redirect("/juridico/question%d" % prochaine_question)
 
 def question(request, question_id):
     if question_id == 0:
