@@ -23,3 +23,9 @@ def question(request):
 
         form = QuestionForm()
     return render(request, 'question.html', {'form': form})
+
+def reponse(request):
+    cid = request.GET["cid"] if request.method == "GET" else request.POST["cid"]
+    reqid = request.GET["reqid"] if request.method == "GET" else request.POST["reqid"]
+
+    
