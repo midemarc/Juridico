@@ -1,7 +1,8 @@
 from django.http import HttpResponse, HttpResponseNotFound
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.core import serializers
 from .models import *
+from .methodes import *
 
 from .forms import *
 
@@ -14,8 +15,21 @@ def questions(request):
     questions = serializers.serialize('json', Question.objects.all())
     return HttpResponse(questions)
 
+def question0(request):
+    reqcontent = getattr(request,request.method)
+
+    requete = Requete.objects.create(
+        description_cas = reqcontent["description_cas"]
+        client = Client.objects.get(cid=int(reqcontent["cid"]))
+    )
+    requete.save()
+
+
 
 def question(request, question_id):
+    if question_id == 0:
+        return question0(request)
+
     o_question = Question.objects.filter(qid=question_id)[0]
     if request.method == 'POST':
         # reqcontent = getattr(request, request.method)
