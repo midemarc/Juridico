@@ -69,7 +69,7 @@ class Requete(models.Model):
     description_cas = models.TextField()
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
 
-class RessourceDeRequete(models.Model)
+class RessourceDeRequete(models.Model):
     rrid = models.AutoField(primary_key=True)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
     ressource = models.ForeignKey("Ressource", on_delete=models.CASCADE)
