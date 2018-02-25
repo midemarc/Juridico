@@ -69,6 +69,7 @@ class Requete(models.Model):
     reqid = models.AutoField(primary_key=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modif = models.DateTimeField(auto_now=True)
+    
     description_cas = models.TextField()
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
 
