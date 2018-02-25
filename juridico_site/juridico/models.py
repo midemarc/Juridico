@@ -30,11 +30,13 @@ class Question(models.Model):
             ("e", "entier numérique"),
             ("f", "numérique à décimales"),
             ("b", "booléen"),
-            ("d", "date")
+            ("d", "date"),
+            ("l", "liste")
         ),
         max_length=1
     )
-    methode = models.CharField(max_length=32, default="")
+    contenu_liste = models.TextField(blank=True, default="")
+
 
 class Variable(models.Model):
     vid = models.AutoField(primary_key=True)
@@ -47,10 +49,12 @@ class Variable(models.Model):
             ("e", "entier numérique"),
             ("f", "numérique à décimales"),
             ("b", "booléen"),
-            ("d", "date")
+            ("d", "date"),
+            ("l", "liste")
         ),
         max_length=1
     )
+    contenu_liste = models.TextField(blank=True, default="")
 
 class Reponse(models.Model):
     repid = models.AutoField(primary_key=True)
