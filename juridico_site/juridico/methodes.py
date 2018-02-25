@@ -32,4 +32,5 @@ def question1(requete, reponse):
     else:
         return None # À changer
 
-def question2(requete, reponse)
+def question2(requete, reponse):
+    pass
