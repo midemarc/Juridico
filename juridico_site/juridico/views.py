@@ -62,7 +62,9 @@ def question(request, question_id):
         elif o_question.reponse_type == "l":
             form = QuestionFormDate(Question.reponse_type.all())
         else:
-            raise ValueError(f'Type de réponse non  pris en compte : {o_question.reponse_type}')
+            raise ValueError('Type de réponse non  pris en compte : {o_reponse_type}'.format(
+                o_reponse_type=o_question.reponse_type
+            ))
 
         if form.is_valid():
             # reponse: Reponse = Reponse()
@@ -102,7 +104,7 @@ def question(request, question_id):
         elif o_question.reponse_type == "l":
             form = QuestionFormDate(Question.reponse_type.all())
         else:
-            raise ValueError(f'Type de reponse non pris en compte : {o_question.reponse_type}')
+            raise ValueError('Type de reponse non pris en compte : %s' % o_question.reponse_type)
 
     return render(
         request,
