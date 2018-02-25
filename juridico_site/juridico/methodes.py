@@ -33,8 +33,8 @@ def add_direction(requete, texte, quand):
     )
     d.save()
     r2r = RessourceDeRequete.objects.create(
-        requete = requete
-        resid = d.resid
+        requete = requete,
+        resid = d.resid,
         poid = 1.
     )
     r2r.save()
@@ -47,8 +47,8 @@ def add_organisation(requete, nom, desc, url):
     )
     d.save()
     r2r = RessourceDeRequete.objects.create(
-        requete = requete
-        resid = d.resid
+        requete = requete,
+        resid = d.resid,
         poid = 1.
     )
 
@@ -60,8 +60,8 @@ def add_documentation(requete, nom, url):
     )
     d.save()
     r2r = RessourceDeRequete.objects.create(
-        requete = requete
-        resid = d.resid
+        requete = requete,
+        resid = d.resid,
         poid = 1.
     )
 
@@ -72,8 +72,8 @@ def add_camarade(requete, client):
     )
     d.save()
     r2r = RessourceDeRequete.objects.create(
-        requete = requete
-        resid = d.resid
+        requete = requete,
+        resid = d.resid,
         poid = 1.
     )
 
