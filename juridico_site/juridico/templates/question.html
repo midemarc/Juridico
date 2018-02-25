@@ -1,4 +1,4 @@
-<form action="question" method="post">
+<form action="question{{question_id}}" method="post">
     {% csrf_token %}
     <p>{{question_label}}</p>
     {{ form }}

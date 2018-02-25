@@ -3,7 +3,7 @@ from django.shortcuts import render
 from django.core import serializers
 from .models import Question
 
-from .forms import QuestionForm
+from .forms import *
 
 
 def index(request):
@@ -18,15 +18,32 @@ def questions(request):
 def question(request, question_id):
     question = Question.objects.filter(qid=question_id)[0]
     if request.method == 'POST':
-        form = QuestionForm(request.POST)
+        # form = QuestionForm(request.POST)
+        if question.reponse_type == "t":
+            form = QuestionFormText(request.POST)
+        elif question.reponse_type == "e":
+            form = QuestionFormInt(request.POST)
+        elif question.reponse_type == "f":
+            form = QuestionFormFloat(request.POST)
+        elif question.reponse_type == "b":
+            form = QuestionFormBool(request.POST)
         if form.is_valid():
-            return HttpResponse('coucou')
+            return HttpResponse('coucou' + str(form.cleaned_data['reponse']))
     else:
-        form = QuestionForm()
+        if question.reponse_type == "t":
+            form = QuestionFormText()
+        elif question.reponse_type == "e":
+            form = QuestionFormInt()
+        elif question.reponse_type == "f":
+            form = QuestionFormFloat()
+        elif question.reponse_type == "b":
+            form = QuestionFormBool()
+
     return render(
         request,
         'question.html',
         {
+            'question_id': question_id,
             'question_label': question.question,
             'form': form
         }
