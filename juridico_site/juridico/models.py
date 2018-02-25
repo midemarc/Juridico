@@ -118,6 +118,7 @@ class Direction(Ressource):
     quand = models.CharField(max_length=256)
 
     def to_resultats(self):
-        return """<td class="direction">
-{description}
-</td>""".format(description=self.description)
+        return """
+        <td>{quand}</td>
+        <td>{description}</td>
+        """.format(description=self.description, quand=self.quand)
