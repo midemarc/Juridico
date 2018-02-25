@@ -16,27 +16,49 @@ def questions(request):
 
 
 def question(request, question_id):
-    question = Question.objects.filter(qid=question_id)[0]
+    o_question = Question.objects.filter(qid=question_id)[0]
     if request.method == 'POST':
+        # reqcontent = getattr(request, request.method)
+        # user: Client = None
+        # # TODO: get id requete
+        # default_requete: Requete().save()
+        # try:
+        #     user_id = reqcontent['user_id']
+        #     user = Client.objects.filter(cid=user_id)[0]
+        # except KeyError:
+        #     raise ValueError('user_id')
+        default_user = Client.objects.filter(cid=1)
+        default_request = Requete.objects.filter(reqid=1)
+
+
+        # reqcontent.get('user_id')
         # form = QuestionForm(request.POST)
-        if question.reponse_type == "t":
+        if o_question.reponse_type == "t":
             form = QuestionFormText(request.POST)
-        elif question.reponse_type == "e":
+        elif o_question.reponse_type == "e":
             form = QuestionFormInt(request.POST)
-        elif question.reponse_type == "f":
+        elif o_question.reponse_type == "f":
             form = QuestionFormFloat(request.POST)
-        elif question.reponse_type == "b":
+        elif o_question.reponse_type == "b":
             form = QuestionFormBool(request.POST)
         if form.is_valid():
-            return HttpResponse('coucou' + str(form.cleaned_data['reponse']))
+            reponse: Reponse = Reponse()
+            reponse.question = o_question
+            reponse.client = default_user
+            reponse.requete = default_request
+            reponse.reponse = form.cleaned_data['reponse']
+            reponse.save()
+
+            # return HttpResponse('coucou' + str(form.cleaned_data['reponse']))
+            return HttpResponse('coucou' + str(reponse))
     else:
-        if question.reponse_type == "t":
+        if o_question.reponse_type == "t":
             form = QuestionFormText()
-        elif question.reponse_type == "e":
+        elif o_question.reponse_type == "e":
             form = QuestionFormInt()
-        elif question.reponse_type == "f":
+        elif o_question.reponse_type == "f":
             form = QuestionFormFloat()
-        elif question.reponse_type == "b":
+        elif o_question.reponse_type == "b":
             form = QuestionFormBool()
 
     return render(
@@ -44,7 +66,7 @@ def question(request, question_id):
         'question.html',
         {
             'question_id': question_id,
-            'question_label': question.question,
+            'question_label': o_question.question,
             'form': form
         }
       )

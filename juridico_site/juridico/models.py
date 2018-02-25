@@ -59,7 +59,6 @@ class Variable(models.Model):
 class Reponse(models.Model):
     repid = models.AutoField(primary_key=True)
     question = models.ForeignKey("Question", on_delete=models.CASCADE)
-    client = models.ForeignKey("Client", on_delete=models.CASCADE)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
     reponse = models.CharField(max_length=1024)
 
