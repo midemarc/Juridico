@@ -34,7 +34,6 @@ class Question(models.Model):
         ),
         max_length=1
     )
-    methode = models.CharField(max_length=32, default="")
 
 class Variable(models.Model):
     vid = models.AutoField(primary_key=True)
