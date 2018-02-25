@@ -107,3 +107,12 @@ def resultats(request, reqid):
         'organismes': organismes
         }
     )
+
+def requete(request, cid):
+    return render(
+        request,
+        'requete.html',
+        {
+        'cid': cid
+        }
+    )

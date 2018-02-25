@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('question<int:question_id>', views.question),
     path('questions', views.questions),
-    path('resultats/<int:reqid>/', views.resultats)
+    path('resultats/<int:reqid>/', views.resultats),
+    path('requete/client<int:cid>', views.requete)
     # path('<int:question_id>/vote/', views.question, name='question'),
 ]
