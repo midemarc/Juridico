@@ -1,8 +1,9 @@
 from treetaggerwrapper import TreeTagger
 import numpy as np
 from scipy.spatial.distance import cosine
+from juridico_site.settings import BASE_DIR
 
-vec = np.load("vecteurs_juridico.npz")
+vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
 
 def desc2domaine(description_cas, dom_logement=1, dom_famille=2):

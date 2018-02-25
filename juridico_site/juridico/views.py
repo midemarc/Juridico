@@ -19,7 +19,7 @@ def question0(request):
     reqcontent = getattr(request,request.method)
 
     requete = Requete.objects.create(
-        description_cas = reqcontent["description_cas"]
+        description_cas = reqcontent["description_cas"],
         client = Client.objects.get(cid=int(reqcontent["cid"]))
     )
     requete.save()
@@ -66,11 +66,17 @@ def question(request, question_id):
             raise ValueError(f'Type de réponse non  pris en compte : {o_question.reponse_type}')
 
         if form.is_valid():
-            reponse: Reponse = Reponse()
-            reponse.question = o_question
-            reponse.client = default_user
-            reponse.requete = default_request
-            reponse.reponse = form.cleaned_data['reponse']
+            # reponse: Reponse = Reponse()
+            # reponse.question = o_question
+            # reponse.client = default_user
+            # reponse.requete = default_request
+            # reponse.reponse = form.cleaned_data['reponse']
+            reponse = Reponse.objects.create(
+                question = o_question,
+                client = default_user,
+                requete = default_request,
+                reponse = form.cleaned_data['reponse']
+            )
             reponse.save()
 
             next_question_id = next_question(question_id, reponse.reponse)
