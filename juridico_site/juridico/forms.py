@@ -15,3 +15,14 @@ class QuestionFormFloat(forms.Form):
 
 class QuestionFormBool(forms.Form):
     reponse = forms.BooleanField()
+
+
+class QuestionFormDate(forms.Form):
+    reponse = forms.DateField()
+
+
+class QuestionFormList(forms.Form):
+    def __init__(self, possibilities):
+        reponse = forms.ModelChoiceField(
+            queryset=possibilities
+        )

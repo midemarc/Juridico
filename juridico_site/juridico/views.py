@@ -1,5 +1,5 @@
 from django.http import HttpResponse, HttpResponseNotFound
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.core import serializers
 from .models import *
 
@@ -27,8 +27,9 @@ def question(request, question_id):
         #     user = Client.objects.filter(cid=user_id)[0]
         # except KeyError:
         #     raise ValueError('user_id')
-        default_user = Client.objects.filter(cid=1)
-        default_request = Requete.objects.filter(reqid=1)
+        default_user = Client.objects.get(cid=1)
+        default_request: Requete = Requete.objects.get(reqid=1)
+        # default_request.client = default_user
 
 
         # reqcontent.get('user_id')
@@ -41,6 +42,13 @@ def question(request, question_id):
             form = QuestionFormFloat(request.POST)
         elif o_question.reponse_type == "b":
             form = QuestionFormBool(request.POST)
+        elif o_question.reponse_type == "d":
+            form = QuestionFormDate()
+        elif o_question.reponse_type == "l":
+            form = QuestionFormDate(Question.reponse_type.all())
+        else:
+            raise ValueError(f'Type de réponse non  pris en compte : {o_question.reponse_type}')
+
         if form.is_valid():
             reponse: Reponse = Reponse()
             reponse.question = o_question
@@ -49,8 +57,12 @@ def question(request, question_id):
             reponse.reponse = form.cleaned_data['reponse']
             reponse.save()
 
+            next_question_id = next_question(question_id, reponse.reponse)
+            print(f'next question id : {next_question_id}')
+
             # return HttpResponse('coucou' + str(form.cleaned_data['reponse']))
-            return HttpResponse('coucou' + str(reponse))
+            # return HttpResponse('coucou' + str(reponse))
+            return redirect(f'/juridico/question{next_question_id}')
     else:
         if o_question.reponse_type == "t":
             form = QuestionFormText()
@@ -60,6 +72,12 @@ def question(request, question_id):
             form = QuestionFormFloat()
         elif o_question.reponse_type == "b":
             form = QuestionFormBool()
+        elif o_question.reponse_type == "d":
+            form = QuestionFormDate()
+        elif o_question.reponse_type == "l":
+            form = QuestionFormDate(Question.reponse_type.all())
+        else:
+            raise ValueError(f'Type de reponse non pris en compte : {o_question.reponse_type}')
 
     return render(
         request,
@@ -70,6 +88,15 @@ def question(request, question_id):
             'form': form
         }
       )
+
+
+def next_question(question_id: int, answer: str) -> int:
+#    pass
+#    if question_id == 0:
+    if answer:
+        return 3
+    else:
+        return 4
 
 def erreur404(request):
     return HttpResponseNotFound("""
