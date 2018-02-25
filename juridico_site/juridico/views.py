@@ -8,8 +8,7 @@ from .forms import *
 
 
 def index(request):
-    return HttpResponse("Hello, world. You're at the polls index.")
-
+    return redirect("requete/client1")
 
 def questions(request):
     questions = serializers.serialize('json', Question.objects.all())
