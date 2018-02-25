@@ -88,7 +88,7 @@ class Organisation(Ressource):
             url=self.url,
             titre=self.nom,
             description=self.description,
-            extra_class=""
+            extra_class=" organisation"
         )
 
 class Documentation(Ressource):
@@ -100,7 +100,7 @@ class Documentation(Ressource):
             url=self.url,
             titre=self.nom,
             description=self.description,
-            extra_class=""
+            extra_class=" documentation"
         )
 
 class Camarade(Ressource):
@@ -111,8 +111,13 @@ class Camarade(Ressource):
             url="",
             titre=self.nom,
             description=self.description,
-            extra_class=""
+            extra_class=" camarade"
         )
 
 class Direction(Ressource):
     quand = models.CharField(max_length=256)
+
+    def to_resultats(self):
+        return """<td class="direction">
+{description}
+</td>""".format(description=self.description)
