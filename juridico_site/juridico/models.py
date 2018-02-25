@@ -18,7 +18,7 @@ class Client(models.Model):
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modif = models.DateTimeField(auto_now=True)
     courriel = models.EmailField()
-    tags = models.ManyToManyField("Tag")
+    tags = models.ManyToManyField("Tag", blank=True)
 
 class Question(models.Model):
     qid = models.AutoField(primary_key=True)
@@ -69,12 +69,18 @@ class Requete(models.Model):
     description_cas = models.TextField()
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
 
+class RessourceDeRequete(models.Model)
+    rrid = models.AutoField(primary_key=True)
+    requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
+    ressource = models.ForeignKey("Ressource", on_delete=models.CASCADE)
+    poid = models.FloatField(default=0.)
+
 # Types de ressources
 
 class Ressource(models.Model):
     resid = models.AutoField(primary_key=True, default=0, unique=True)
     description = models.TextField(default="")
-    tags = models.ManyToManyField("Tag")
+    tags = models.ManyToManyField("Tag", blank=True)
 
     class Meta:
         abstract = True

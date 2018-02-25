@@ -1,7 +1,7 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotFound
 from django.shortcuts import render
 from django.core import serializers
-from .models import Question
+from .models import *
 
 from .forms import *
 
@@ -49,6 +49,25 @@ def question(request, question_id):
         }
       )
 
-def reponse(request):
-    cid = request.GET["cid"] if request.method == "GET" else request.POST["cid"]
-    reqid = request.GET["reqid"] if request.method == "GET" else request.POST["reqid"]
+def erreur404(request):
+    return HttpResponseNotFound("""
+    <h1>Erreur 404</h1>
+    <p>Bah non, elle est pas là, la page...</p>
+    """)
+
+def resultats(request):
+    """Sort la page des resultats.
+    Demande que "reqid", l'id de la requête, soit envoyés à la page.
+    """
+
+    reqcontent = getattr(request,request.method)
+    if "reqid" in reqcontent:
+        reqid = int(reqcontent["reqid"])
+    else:
+        return HttpResponse("""
+        <h1>Erreur: information manquante</h1>
+        <p>Le serveur ne peut retrouver votre requête.</p>
+        """)
+
+    requete = Requete.objects.get(reqid=reqid)
+    directions = Direction.objects.filter()
