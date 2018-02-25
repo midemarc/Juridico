@@ -79,11 +79,15 @@ def question(request, question_id):
             reponse.save()
 
             next_question_id = next_question(question_id, reponse.reponse)
-            print(f'next question id : {next_question_id}')
+            # print('next question id : {next_question_id}'.format(
+            #     next_question_id=next_question_id
+            # ))
 
             # return HttpResponse('coucou' + str(form.cleaned_data['reponse']))
             # return HttpResponse('coucou' + str(reponse))
-            return redirect(f'/juridico/question{next_question_id}')
+            return redirect('/juridico/question{next_question_id}'.format(
+                next_question_id=next_question_id
+            ))
     else:
         if o_question.reponse_type == "t":
             form = QuestionFormText()
