@@ -25,3 +25,11 @@ def desc2domaine(description_cas, dom_logement=1, dom_famille=2):
         return dom_logement
     else:
         return dom_famille
+
+def question1(requete, reponse):
+    if reponse.reponse.lower() == "oui":
+        return 2
+    else:
+        return None # À changer
+
+def question2(requete, reponse)

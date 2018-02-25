@@ -2,7 +2,7 @@ from django.http import HttpResponse, HttpResponseNotFound
 from django.shortcuts import render, redirect
 from django.core import serializers
 from .models import *
-from .methodes import *
+import juridico.methodes as met
 
 from .forms import *
 
@@ -23,7 +23,7 @@ def question0(request):
     )
     requete.save()
 
-    prochaine_question = desc2domaine(reqcontent["description_cas"])
+    prochaine_question = met.desc2domaine(reqcontent["description_cas"])
 
     return redirect("question%d" % prochaine_question)
 
