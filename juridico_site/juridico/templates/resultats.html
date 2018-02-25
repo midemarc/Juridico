@@ -1,20 +1,22 @@
 <!doctype html>
 <html>
   <head>
-    <title>Résultats</title>
+    <title>Juridico – Résultats</title>
     <link rel="stylesheet" href="{static resultats.css}">
   </head>
   <body>
-    <h1>Résultats</h1>
+    <header>
+      <h1>Juridico</h1>
+    </header>
+    <h2>Résultats</h2>
     <div class="contenu">
-      <div class="directions">
+      {% if directions.count > 0 %}
+      <table class="directions">
         {% for direction in directions %}
-        <h2>{{direction.nom}}</h2>
-        <div>
-          {{ direction.text }}
-        </div>
+        {{ direction.to_resultats }}
         {% end for %}
-      </div>
+      </table>
+      {% end if %}
       <div class="ressources">
         <div class="organismes">
           {% for org in organismes %}

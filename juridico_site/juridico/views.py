@@ -71,4 +71,17 @@ def resultats(request, reqid):
 
     requete = Requete.objects.get(reqid=reqid)
     directions = Direction.objects.filter(requete=requete)
-    
+    camarades = Camarade.objects.filter(requete=requete)
+    organismes = Organisation.objects.filter(requete=requete)
+    documentation = Documentation.objects.filter(requete=requete)
+
+    return render(
+        request,
+        'resultats.html',
+        {
+        'directions': directions,
+        'camarades': camarades,
+        'documentation': documentation,
+        'organismes': organismes
+        }
+    )

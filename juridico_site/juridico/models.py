@@ -118,14 +118,14 @@ class Direction(Ressource):
     quand = models.CharField(max_length=256)
 
     def to_resultats(self):
-        return """
+        return """<tr>
         <td>{quand}</td>
         <td>{description}</td>
-        """.format(description=self.description, quand=self.quand)
+        </tr>""".format(description=self.description, quand=self.quand)
 
 
 class RessourceDeRequete(models.Model):
     rrid = models.AutoField(primary_key=True)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
-    ressource = models.ForeignKey("Ressource", on_delete=models.CASCADE)
+    rrid = models.IntegerField(default=-1)
     poid = models.FloatField(default=0.)
