@@ -24,7 +24,9 @@ def question0(request):
     )
     requete.save()
 
+    prochaine_question = desc2domaine(reqcontent["description_cas"])
 
+    return redirect("question%d" % prochaine_question)
 
 def question(request, question_id):
     if question_id == 0:
