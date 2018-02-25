@@ -22,7 +22,8 @@ class QuestionFormDate(forms.Form):
 
 
 class QuestionFormList(forms.Form):
-    def __init__(self, possibilities):
-        reponse = forms.ModelChoiceField(
-            queryset=possibilities
-        )
+    reponse = forms.ChoiceField()
+    # def __init__(self, possibilities):
+    #     reponse = forms.ChoiceField(
+    #         choices=possibilities
+    #     )
