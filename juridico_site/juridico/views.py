@@ -15,8 +15,8 @@ def questions(request):
     return HttpResponse(questions)
 
 def question0(request):
-    reqcontent = getattr(request,request.method)
-
+    reqcontent = getattr(request, request.method)
+    # print('question0------------')
     requete = Requete.objects.create(
         description_cas = reqcontent["description_cas"],
         client = Client.objects.get(cid=int(reqcontent["cid"]))
@@ -61,7 +61,16 @@ def question(request, question_id):
         elif o_question.reponse_type == "d":
             form = QuestionFormDate()
         elif o_question.reponse_type == "l":
-            form = QuestionFormDate(Question.reponse_type.all())
+            # elements = o_question.contenu_liste.split('\n')
+            # form = QuestionFormDate(elements)
+            print(o_question.contenu_liste)
+            elements = o_question.contenu_liste.split('\r\n')
+            d = {}
+            for e in elements:
+                d[e] = e
+            print(d)
+            form = QuestionFormList()
+            form.response = forms.ChoiceField(choices=d)
         else:
             raise ValueError('Type de réponse non  pris en compte : {o_reponse_type}'.format(
                 o_reponse_type=o_question.reponse_type
@@ -91,6 +100,8 @@ def question(request, question_id):
             return redirect('/juridico/question{next_question_id}'.format(
                 next_question_id=next_question_id
             ))
+        else:
+            raise ValueError('Form not valid')
     else:
         if o_question.reponse_type == "t":
             form = QuestionFormText()
@@ -103,7 +114,15 @@ def question(request, question_id):
         elif o_question.reponse_type == "d":
             form = QuestionFormDate()
         elif o_question.reponse_type == "l":
-            form = QuestionFormDate(Question.reponse_type.all())
+            print(o_question.contenu_liste)
+            elements = o_question.contenu_liste.split('\r\n')
+            d = {}
+            for e in elements:
+                d[e] = e
+            print(d)
+
+            form = QuestionFormList()
+            form.response = forms.ChoiceField(choices=d)
         else:
             raise ValueError('Type de reponse non pris en compte : %s' % o_question.reponse_type)
 
@@ -119,12 +138,13 @@ def question(request, question_id):
 
 
 def next_question(question_id: int, answer: str) -> int:
+    print('next question()')
 #    pass
 #    if question_id == 0:
-    if answer:
-        return 3
+    if 'Yes' in answer:
+        return 6
     else:
-        return 4
+        return 7
 
 def erreur404(request):
     return HttpResponseNotFound("""
