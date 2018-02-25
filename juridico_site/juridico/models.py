@@ -69,7 +69,7 @@ class Requete(models.Model):
     reqid = models.AutoField(primary_key=True)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modif = models.DateTimeField(auto_now=True)
-    
+
     description_cas = models.TextField()
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
 
@@ -131,5 +131,4 @@ class Direction(Ressource):
 class RessourceDeRequete(models.Model):
     rrid = models.AutoField(primary_key=True)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
-    rrid = models.IntegerField(default=-1)
     poid = models.FloatField(default=0.)
