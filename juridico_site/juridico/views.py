@@ -55,19 +55,20 @@ def erreur404(request):
     <p>Bah non, elle est pas là, la page...</p>
     """)
 
-def resultats(request):
+def resultats(request, reqid):
     """Sort la page des resultats.
     Demande que "reqid", l'id de la requête, soit envoyés à la page.
     """
 
-    reqcontent = getattr(request,request.method)
-    if "reqid" in reqcontent:
-        reqid = int(reqcontent["reqid"])
-    else:
-        return HttpResponse("""
-        <h1>Erreur: information manquante</h1>
-        <p>Le serveur ne peut retrouver votre requête.</p>
-        """)
+    # reqcontent = getattr(request,request.method)
+    # if "reqid" in reqcontent:
+    #     reqid = int(reqcontent["reqid"])
+    # else:
+    #     return HttpResponse("""
+    #     <h1>Erreur: information manquante</h1>
+    #     <p>Le serveur ne peut retrouver votre requête.</p>
+    #     """)
 
     requete = Requete.objects.get(reqid=reqid)
-    directions = Direction.objects.filter()
+    directions = Direction.objects.filter(requete=requete)
+    

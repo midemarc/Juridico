@@ -69,12 +69,6 @@ class Requete(models.Model):
     description_cas = models.TextField()
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
 
-class RessourceDeRequete(models.Model):
-    rrid = models.AutoField(primary_key=True)
-    requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
-    ressource = models.ForeignKey("Ressource", on_delete=models.CASCADE)
-    poid = models.FloatField(default=0.)
-
 # Types de ressources
 
 class Ressource(models.Model):
@@ -128,3 +122,10 @@ class Direction(Ressource):
         <td>{quand}</td>
         <td>{description}</td>
         """.format(description=self.description, quand=self.quand)
+
+
+class RessourceDeRequete(models.Model):
+    rrid = models.AutoField(primary_key=True)
+    requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
+    ressource = models.ForeignKey("Ressource", on_delete=models.CASCADE)
+    poid = models.FloatField(default=0.)
