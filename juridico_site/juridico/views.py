@@ -43,7 +43,7 @@ def question(request, question_id):
         # except KeyError:
         #     raise ValueError('user_id')
         default_user = Client.objects.get(cid=1)
-        default_request: Requete = Requete.objects.get(reqid=1)
+        default_request = Requete.objects.get(reqid=1)
         # default_request.client = default_user
 
 
