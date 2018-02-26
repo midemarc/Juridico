@@ -17,7 +17,9 @@
                 {% csrf_token %}
                 <input type="hidden" name="cid" value="{{ cid }}">
                 <textarea name="description_cas" rows="8" cols="80"></textarea>
-                <input type="submit" name="Soumettre">
+                <div>
+                  <input type="submit" name="Soumettre">
+                </div>
             </fieldset>
         </form>
     </body>
