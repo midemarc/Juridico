@@ -42,7 +42,7 @@ class Question(models.Model):
 
 class Variable(models.Model):
     vid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=32)
+    nom = models.CharField(max_length=32, unique=True)
     valeur = models.CharField(max_length=1024)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
 
