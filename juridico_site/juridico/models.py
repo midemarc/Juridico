@@ -57,7 +57,7 @@ class Reponse(models.Model):
 
     def get_value(self):
         rtype = self.question.reponse_type
-        if r == "t": return self.reponse
+        if r == "t" or r == "l": return self.reponse
         elif r=="e": return int(self.reponse)
         elif r=="f": return float(self.reponse)
         elif r=="b":
@@ -66,7 +66,7 @@ class Reponse(models.Model):
                 return True
             elif r in ("n", "non", "no", "false", "0"):
                 return False
-        elif r=="d": return float(self.reponse):
+        elif r=="d":
             # On assume l'ordre français pour les dates:
             d,m,y = tuple(int(i) for i in re.split("[/-. ]+", self.reponse.strip()))
             return date(y,m,d)
