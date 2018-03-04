@@ -1,5 +1,6 @@
 Django==2.0.2
+six==1.11
 pytz==2018.3
 scipy==0.17.0
-numpy==1.11.0
+numpy==1.14.1
 treetaggerwrapper==2.2.3
