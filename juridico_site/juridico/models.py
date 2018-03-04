@@ -1,4 +1,6 @@
 from django.db import models
+from datetime import datetime, timedelta, date
+import re
 
 # Create your models here.
 
@@ -43,18 +45,6 @@ class Variable(models.Model):
     nom = models.CharField(max_length=32)
     valeur = models.CharField(max_length=1024)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
-    reponse_type = models.CharField(
-        choices = (
-            ("t", "textuel"),
-            ("e", "entier numérique"),
-            ("f", "numérique à décimales"),
-            ("b", "booléen"),
-            ("d", "date"),
-            ("l", "liste")
-        ),
-        max_length=1
-    )
-    contenu_liste = models.TextField(blank=True, default="")
 
 class Reponse(models.Model):
     repid = models.AutoField(primary_key=True)
@@ -64,6 +54,22 @@ class Reponse(models.Model):
 
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modif = models.DateTimeField(auto_now=True)
+
+    def get_value(self):
+        rtype = self.question.reponse_type
+        if r == "t": return self.reponse
+        elif r=="e": return int(self.reponse)
+        elif r=="f": return float(self.reponse)
+        elif r=="b":
+            r = self.reponse.strip().lower()
+            if r in ("y", "o", "yes", "oui", "true", "vrai", "1"):
+                return True
+            elif r in ("n", "non", "no", "false", "0"):
+                return False
+        elif r=="d": return float(self.reponse):
+            # On assume l'ordre français pour les dates:
+            d,m,y = tuple(int(i) for i in re.split("[/-. ]+", self.reponse.strip()))
+            return date(y,m,d)
 
 class Requete(models.Model):
     reqid = models.AutoField(primary_key=True)
