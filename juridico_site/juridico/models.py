@@ -39,6 +39,11 @@ class Question(models.Model):
     )
     contenu_liste = models.TextField(blank=True, default="")
 
+    def options(self) -> list:
+        if '\r\n' in self.contenu_liste:
+            return self.contenu_liste.split('\r\n')
+        return []
+
 
 class Variable(models.Model):
     vid = models.AutoField(primary_key=True)

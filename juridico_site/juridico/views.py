@@ -1,6 +1,11 @@
-from django.http import HttpResponse, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
+from rest_framework.parsers import JSONParser
 from django.shortcuts import render, redirect
 from django.core import serializers
+from typing import List
+from django.views.decorators.csrf import csrf_exempt
+
+from juridico.serializers import QuestionSerializer
 from .models import *
 import juridico.methodes as met
 
@@ -34,22 +39,9 @@ def question(request, question_id):
 
     o_question = Question.objects.filter(qid=question_id)[0]
     if request.method == 'POST':
-        # reqcontent = getattr(request, request.method)
-        # user: Client = None
-        # # TODO: get id requete
-        # default_requete: Requete().save()
-        # try:
-        #     user_id = reqcontent['user_id']
-        #     user = Client.objects.filter(cid=user_id)[0]
-        # except KeyError:
-        #     raise ValueError('user_id')
         default_user = Client.objects.get(cid=1)
         default_request = Requete.objects.get(reqid=1)
-        # default_request.client = default_user
 
-
-        # reqcontent.get('user_id')
-        # form = QuestionForm(request.POST)
         if o_question.reponse_type == "t":
             form = QuestionFormText(request.POST)
         elif o_question.reponse_type == "e":
@@ -59,29 +51,15 @@ def question(request, question_id):
         elif o_question.reponse_type == "b":
             form = QuestionFormBool(request.POST)
         elif o_question.reponse_type == "d":
-            form = QuestionFormDate()
+            form = QuestionFormDate(request.POST)
         elif o_question.reponse_type == "l":
-            # elements = o_question.contenu_liste.split('\n')
-            # form = QuestionFormDate(elements)
-            print(o_question.contenu_liste)
-            elements = o_question.contenu_liste.split('\r\n')
-            d = {}
-            for e in elements:
-                d[e] = e
-            print(d)
-            form = QuestionFormList()
-            form.response = forms.ChoiceField(choices=d)
+            form = QuestionFormList(request.POST)
         else:
             raise ValueError('Type de réponse non  pris en compte : {o_reponse_type}'.format(
                 o_reponse_type=o_question.reponse_type
             ))
 
         if form.is_valid():
-            # reponse: Reponse = Reponse()
-            # reponse.question = o_question
-            # reponse.client = default_user
-            # reponse.requete = default_request
-            # reponse.reponse = form.cleaned_data['reponse']
             reponse = Reponse.objects.create(
                 question = o_question,
                 client = default_user,
@@ -91,12 +69,6 @@ def question(request, question_id):
             reponse.save()
 
             next_question_id = next_question(question_id, reponse.reponse)
-            # print('next question id : {next_question_id}'.format(
-            #     next_question_id=next_question_id
-            # ))
-
-            # return HttpResponse('coucou' + str(form.cleaned_data['reponse']))
-            # return HttpResponse('coucou' + str(reponse))
             return redirect('/juridico/question{next_question_id}'.format(
                 next_question_id=next_question_id
             ))
@@ -114,15 +86,11 @@ def question(request, question_id):
         elif o_question.reponse_type == "d":
             form = QuestionFormDate()
         elif o_question.reponse_type == "l":
-            print(o_question.contenu_liste)
             elements = o_question.contenu_liste.split('\r\n')
-            d = {}
-            for e in elements:
-                d[e] = e
-            print(d)
 
             form = QuestionFormList()
-            form.response = forms.ChoiceField(choices=d)
+            # form = QuestionFormList(choice_list=__list_to_tuple(elements))
+            # form.response = forms.ChoiceField(choices=d)
         else:
             raise ValueError('Type de reponse non pris en compte : %s' % o_question.reponse_type)
 
@@ -191,3 +159,30 @@ def requete(request, cid):
         'cid': cid
         }
     )
+
+
+@csrf_exempt
+def api_get_question(request, question_id: int):
+    """
+    Retrieve, update or delete a question
+    """
+    try:
+        question = Question.objects.get(qid=question_id)
+    except Question.DoesNotExist:
+        return HttpResponse(status=404)
+
+    if request.method == 'GET':
+        serializer = QuestionSerializer(question)
+        return JsonResponse(serializer.data)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        serializer = QuestionSerializer(question, data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data)
+        return JsonResponse(serializer.errors, status=400)
+
+    elif request.method == 'DELETE':
+        question.delete()
+        return HttpResponse(status=204)

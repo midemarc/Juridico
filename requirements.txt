@@ -1,7 +1,9 @@
 Django==2.0.2
-six==1.11
+djangorestframework==3.7.7
+numpy==1.11.0
+python-dateutil==2.6.1
 pytz==2018.3
 scipy==0.17.0
-numpy==1.14.1
+six==1.11.0
 treetaggerwrapper==2.2.3
-dateutil==2.6.1
+typing==3.6.4
