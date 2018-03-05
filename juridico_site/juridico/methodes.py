@@ -5,9 +5,11 @@ from juridico_site.settings import BASE_DIR
 from collections import Counter
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
+import locale
 
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
+locale.setlocale(locale.LC_ALL, "fr_CA.utf-8")
 
 def str2date(s):
     d,m,y = tuple(int(i) for i in re.split("[/-. ]+", self.reponse.strip()))
@@ -196,12 +198,14 @@ def question6(requete,reponse):
     # Quelle est la date de fin de bail?
     stocker_valeur(requete, "date_fin_de_bail", reponse.reponse)
     duree_bail = get_valeur(requete, "durée_bail")
-    fin_bail = str2str2date(reponse.reponse)
-    date_reception = str2str2date(get_valeur(requete, "date_reception"))
+    fin_bail = str2date(reponse.reponse)
+    date_reception = str2date(get_valeur(requete, "date_reception"))
 
     dmois_reception_fin_bail = relativedelta(fin_bail, date_reception)
     d6mois = relativedelta(months=6)
     d3mois = relativedelta(months=3)
+    d1mois = relativedelta(months=1)
+    d2mois = relativedelta(months=2)
 
     if duree_bail == "Bail de 12 mois et plus" and \
         rd_gt(d6mois,dmois_reception_fin_bail) and \
@@ -210,3 +214,90 @@ def question6(requete,reponse):
         add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé entre 3 et 6 mois avant la fin du bail).")
 
         date_limite_reponse = date_reception + timedelta(months=1)
+        njours = (date_limite_reponse-date.today()).days
+
+        add_direction("""
+        <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
+        <p>Vous pouvez communiquer votre refus ou votre acceptation de la modification. Si vous ne répondez pas à l’avis, cela équivaudra à une acceptation des modifications.</p>
+        <p>Si vous acceptez la modification, celle-ci prendra effet au terme de la durée du bail qui sera donc reconduit suivant les nouvelles modalités acceptées.</p>
+        <p>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement. À ce moment, vous pouvez:</p>
+        <ul>
+            <li>Essayer de vous entendre avec votre propriétaire pour une hausse que vous seriez capable d’accepter.</li>
+            <li>Ne rien faire. Et dans ce cas, il est possible que votre propriétaire laisse tomber, comme il est possible qu’il s’adresse à la Régie du logement s’il souhaite quand même augmenter le loyer.</li>
+            <li>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement.</li>
+            <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu.</li>
+        </ul>
+        """ % (date_limite_reponse.strftime("%-d %B %Y"), njours))
+
+    elif duree_bail == "Bail de 12 mois et plus" and \
+        (not rd_gt(d6mois,dmois_reception_fin_bail) or \
+        rd_gt(d3mois, dmois_reception_fin_bail)):
+
+        add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
+        <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+
+    elif duree_bail == "Bail de moins de 12 mois" and \
+        rd_gt(d2mois,dmois_reception_fin_bail) and \
+        not rd_gt(d1mois, dmois_reception_fin_bail):
+
+        add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé entre 3 et 6 mois avant la fin du bail).")
+
+        date_limite_reponse = date_reception + timedelta(months=1)
+        njours = (date_limite_reponse-date.today()).days
+
+        add_direction("""
+        <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
+        <p>Vous pouvez communiquer votre refus ou votre acceptation de la modification. Si vous ne répondez pas à l’avis, cela équivaudra à une acceptation des modifications.</p>
+        <p>Si vous acceptez la modification, celle-ci prendra effet au terme de la durée du bail qui sera donc reconduit suivant les nouvelles modalités acceptées.</p>
+        <p>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement. À ce moment, vous pouvez:</p>
+        <ul>
+            <li>Essayer de vous entendre avec votre propriétaire pour une hausse que vous seriez capable d’accepter.</li>
+            <li>Ne rien faire. Et dans ce cas, il est possible que votre propriétaire laisse tomber, comme il est possible qu’il s’adresse à la Régie du logement s’il souhaite quand même augmenter le loyer.</li>
+            <li>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement.</li>
+            <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu.</li>
+        </ul>
+        """ % (date_limite_reponse.strftime("%-d %B %Y"), njours))
+
+    elif duree_bail == "Bail de moins de 12 mois" and \
+        (not rd_gt(d2mois,dmois_reception_fin_bail) or \
+        rd_gt(d1mois, dmois_reception_fin_bail)):
+
+        add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
+        <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+
+    return -1
+
+def question7(requete, reponse):
+    stocker_valeur(requete, "date_de_modification_souhaitée", reponse.reponse)
+    date_modifs = str2date(reponse.reponse)
+    date_reception = str2date(get_valeur(requete, "date_reception"))
+
+    dmois_reception_modifs = relativedelta(fin_bail, date_modifs)
+    d1mois = relativedelta(months=1)
+    d2mois = relativedelta(months=2)
+
+    if rd_gt(d1mois,dmois_reception_fin_bail) and \
+        not rd_gt(d2mois, dmois_reception_fin_bail): #équivaut à ≥ 3 mois & < 6 mois
+
+        add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé entre 3 et 6 mois avant la fin du bail).")
+
+        date_limite_reponse = date_reception + timedelta(months=1)
+        njours = (date_limite_reponse-date.today()).days
+
+        add_direction("""
+        <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
+        <p>Vous pouvez communiquer votre refus ou votre acceptation de la modification. Si vous ne répondez pas à l’avis, cela équivaudra à une acceptation des modifications.</p>
+        <p>Si vous acceptez la modification, celle-ci prendra effet au terme de la durée du bail qui sera donc reconduit suivant les nouvelles modalités acceptées.</p>
+        <p>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement. À ce moment, vous pouvez:</p>
+        <ul>
+            <li>Essayer de vous entendre avec votre propriétaire pour une hausse que vous seriez capable d’accepter.</li>
+            <li>Ne rien faire. Et dans ce cas, il est possible que votre propriétaire laisse tomber, comme il est possible qu’il s’adresse à la Régie du logement s’il souhaite quand même augmenter le loyer.</li>
+            <li>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement.</li>
+            <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu.</li>
+        </ul>
+        """ % (date_limite_reponse.strftime("%-d %B %Y"), njours))
+
+    else:
+
+        add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
+        <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
