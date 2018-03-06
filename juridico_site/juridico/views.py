@@ -8,7 +8,7 @@ from django.core import serializers
 from typing import List
 from django.views.decorators.csrf import csrf_exempt
 
-from juridico.serializers import QuestionSerializer
+from juridico.serializers import QuestionSerializer, ReponseSerializer
 from .models import *
 import juridico.methodes as met
 
@@ -204,3 +204,18 @@ def api_question(request, question_id: int):
     elif request.method == 'DELETE':
         question.delete()
         return HttpResponse(status=204)
+
+
+@api_view(['GET', 'POST'])
+def api_reponses(request):
+    if request.method == 'GET':
+        reponses = Reponse.objects.all()
+        serializer = ReponseSerializer(reponses, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = ReponseSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
