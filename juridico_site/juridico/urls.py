@@ -9,5 +9,6 @@ urlpatterns = [
     path('resultats/<int:reqid>/', views.resultats),
     path('requete/client<int:cid>', views.requete),
     # path('<int:question_id>/vote/', views.question, name='question'),
-    path('api/question<int:question_id>', views.api_get_question),
+    path('api/questions(<int:question_id>)', views.api_question),
+    path('api/questions', views.api_questions)
 ]

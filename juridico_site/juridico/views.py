@@ -1,4 +1,7 @@
 from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
 from rest_framework.parsers import JSONParser
 from django.shortcuts import render, redirect
 from django.core import serializers
@@ -161,8 +164,23 @@ def requete(request, cid):
     )
 
 
+@api_view(['GET', 'POST'])
+def api_questions(request):
+    if request.method == 'GET':
+        questions = Question.objects.all()
+        serializer = QuestionSerializer(questions, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = QuestionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 @csrf_exempt
-def api_get_question(request, question_id: int):
+def api_question(request, question_id: int):
     """
     Retrieve, update or delete a question
     """
