@@ -466,7 +466,7 @@ def question21(requete,reponse):
             <p>Vous disposez d’un délai de 10 jours pour répondre à cet avis. Donc, vous avez jusqu’au {date_max}.</p>
             <p>Vous pouvez refuser ou accepter l’évacuation.</p>
             <p>Si vous ne répondez pas, vous êtes présumé avoir refusé de quitter les lieux.</p>
-            <p>Si vous refusez (ou si vous ne répondez pas), votre propriétaire pourra alors, dans les 10 jours suivant votre refus, s'adresser à la Régie du logement qui statuera sur l'opportunité de l'évacuation et pourra fixer les conditions qu'elle estime justes et raisonnables.</p>
+            <p>Si vous refusez (ou si vous ne répondez pas), votre propriétaire pourra alors, dans les 10 jours suivant votre refus, s'adresser à la Régie du logement qui statuera sur l'opportunité de l'évacuation et pourra fixer les conditions qu'elle estime justes et raisonnables.</p>
             <p>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec&nbsp;:</p>
             <ul>
             <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement</li>
@@ -500,3 +500,73 @@ def question21(requete,reponse):
             <li>Le montant offert à titre d’indemnité pour couvrir les dépenses liées à l’évacuation des lieux</li>
             </ul>
             """)
+            date_max = date_reception + timedelta(days=10)
+            add_direction("""
+            <p>Vous disposez d’un délai de 10 jours pour répondre à cet avis. Donc, vous avez jusqu’au {date_max}.</p>
+            <p>Vous pouvez refuser ou accepter l’évacuation.</p>
+            <p>Si vous ne répondez pas, vous êtes présumé avoir refusé de quitter les lieux.</p>
+            <p>Si vous refusez (ou si vous ne répondez pas), votre propriétaire pourra alors, dans les 10 jours suivant votre refus, s'adresser à la Régie du logement qui statuera sur l'opportunité de l'évacuation et pourra fixer les conditions qu'elle estime justes et raisonnables.</p>
+            <p>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec&nbsp;:</p>
+            <ul>
+            <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement</li>
+            <li>Un avocat spécialiste en droit de logement</li>
+            </ul>
+            """.format())
+    return -1
+
+# Questions de Stéfanny
+
+def question9(requete,reponse):
+    stocker_valeur(requete,"demande_en_divorce", reponse.reponse)
+    return 10
+
+def question10(requete,reponse):
+    stocker_valeur(requete,"enfants_mineurs", reponse.reponse)
+    return 11
+
+def question11(requete,reponse):
+    stocker_valeur(requete,"propriété_en_commun", reponse.reponse)
+    return 12
+
+def question12(requete,reponse):
+    stocker_valeur(requete,"ouvert_a_mediation", reponse.reponse)
+    return 13
+
+def question13(requete,reponse):
+    stocker_valeur(requete,"date_reception", reponse.reponse)
+    return 14
+
+def question14(requete,reponse):
+    if reponse.reponse.strip().lower() == "non":
+        return -1
+    else:
+        return 15
+
+def question15(requete,reponse):
+    stocker_valeur(requete,"date_avis_presentation", reponse.reponse)
+    return 16
+
+def question16(requete,reponse):
+    stocker_valeur(requete,"autorepresentation", reponse.reponse)
+    return 17
+
+def question17(requete,reponse):
+    stocker_valeur(requete,"admissible_aide_juridique", reponse.reponse)
+
+    F1 = get_valeur(requete, "demande_en_divorce")
+    F8 = get_valeur(requete, "autorepresentation")
+    F5 = str2date(get_valeur(requete,"date_reception"))
+    F7 = str2str2date(get_valeur(requete,"date_avis_presentation"))
+    F9 = reponse.reponse.strip().lower()
+
+    if F8 == "oui":
+        if F1 == "non":
+            add_direction("Vous devez vous présenter à la cour le {date_cour} et indiquer votre intention de contester les conclusions dans la demande.".format(date_cour=F7))
+        else:
+            add_direction("""
+            <p>Si vous désirez vous représentez seul, vous devez remplir le formulaire <a href="https://www.justice.gouv.qc.ca/fileadmin/user_upload/contenu/documents/Fr__francais_/centredoc/formulaires/vos-differends/sj554.pdf" target="_blank">"Réponse" (SJ-554)</a> et le déposer au greffe du tribunal indiqué en haut de la demande.</p>
+            <p>Notez que vous aurez à défrayer des frais.</p>
+            """)
+    if F2 == "oui":
+        add_direction("""<p>Vous êtes admissible au programme provincial de médiation familiale. Vous avez donc droit à 5 heures gratuite de médiation.</p>
+        <p>Contactez la partie adverse pour proposer la médiation. Vous trouverez ci-bas une liste de médiateurs accrédités près de vous.</p>""")
