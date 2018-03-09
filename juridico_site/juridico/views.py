@@ -208,6 +208,9 @@ def api_question(request, question_id: int):
 
 @api_view(['GET', 'POST'])
 def api_reponses(request):
+    """GET lists all responses (models.Reponse serialized)
+
+    POST creates one"""
     if request.method == 'GET':
         reponses = Reponse.objects.all()
         serializer = ReponseSerializer(reponses, many=True)
@@ -219,3 +222,23 @@ def api_reponses(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# def api_next_question(request, request_id: int, reponse_id: int):
+def api_next_question(request):
+    """Gets the next question after a specific answer
+
+    :return: a serialized **models.Question** object.
+    """
+    # if request.method == 'GET':
+    try:
+        print(f'request_id {request.GET["reqid"]}')
+        reponse_id: int = int(request.GET["reqid"])
+        request_id: int = int(request.POST['repid'])
+        o_reponse = Reponse.objects.get(repid=reponse_id)
+        o_request = Requete.objects.get(reqid=request_id)
+        method = getattr(met, f'question{o_reponse.question_id}')
+        return method(requete=o_request, reponse=o_reponse)
+    except AttributeError:
+        raise NotImplementedError('')
+    pass

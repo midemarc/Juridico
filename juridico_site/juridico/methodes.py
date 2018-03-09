@@ -1,3 +1,4 @@
+import re
 from treetaggerwrapper import TreeTagger
 import numpy as np
 from scipy.spatial.distance import cosine
@@ -7,9 +8,11 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 import locale
 
+from .models import Variable, RessourceDeRequete, Direction
+
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
-locale.setlocale(locale.LC_ALL, "fr_CA.utf-8")
+# locale.setlocale(locale.LC_ALL, "fr_CA.utf-8")
 
 def str2date(s):
     d,m,y = tuple(int(i) for i in re.split("[/-. ]+", self.reponse.strip()))
@@ -113,7 +116,7 @@ def add_camarade(requete, client):
     r2r.save()
 
 def stocker_valeur(requete, nom, val):
-    v = Variable.objects.create(
+    v = Variable.objects.get_or_create(
         nom=nom,
         requete=requete,
         valeur=val
@@ -127,7 +130,7 @@ def question1(requete, reponse):
     if reponse.reponse.lower() == "oui":
         return 2
     else:
-        return None # À changer
+        return None #TODO: À changer
 
 def question2(requete, reponse):
     r = reponse.reponse

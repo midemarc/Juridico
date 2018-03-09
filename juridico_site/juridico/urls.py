@@ -12,4 +12,6 @@ urlpatterns = [
     path('api/questions<int:question_id>', views.api_question),
     path('api/questions', views.api_questions),
     path('api/reponses', views.api_reponses),
+    # path('api/next_question<int:reponse_id> <ìnt:request_id>', views.api_next_question),
+    path('api/next_question', views.api_next_question),
 ]
