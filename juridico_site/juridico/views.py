@@ -232,13 +232,15 @@ def api_next_question(request):
     """
     # if request.method == 'GET':
     try:
-        print(f'request_id {request.GET["reqid"]}')
-        reponse_id: int = int(request.GET["reqid"])
-        request_id: int = int(request.POST['repid'])
+        request_id: int = int(request.GET["reqid"])
+        reponse_id: int = int(request.GET['repid'])
         o_reponse = Reponse.objects.get(repid=reponse_id)
         o_request = Requete.objects.get(reqid=request_id)
         method = getattr(met, f'question{o_reponse.question_id}')
-        return method(requete=o_request, reponse=o_reponse)
+        next_question_id = method(requete=o_request, reponse=o_reponse)
+        question = Question.objects.get(qid=next_question_id)
+        serializer = QuestionSerializer(question)
+        return JsonResponse(serializer.data)
     except AttributeError:
         raise NotImplementedError('')
     pass
