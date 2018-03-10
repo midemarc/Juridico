@@ -7,8 +7,8 @@ from collections import Counter
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 #import locale
-
 from .models import Variable, RessourceDeRequete, Direction
+
 
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
