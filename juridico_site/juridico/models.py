@@ -13,6 +13,20 @@ item_html = """<div class="item{extra_class}">
 class Tag(models.Model):
     tid = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=256)
+    type_de_tag = models.ForeignKey("TagType", blank=True, null=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        if self.type_de_tag ==None:
+            return "(%d) %s" % (self.tid,self.nom)
+        else:
+            return "(%d) %s → %s" % (self.tid,self.type_de_tag.nom, self.nom)
+
+
+class TagType(models.Model):
+    ttid = models.AutoField(primary_key=True)
+    nom = models.CharField(max_length=256)
+    def __str__(self):
+        return "(%d) %s" % (self.ttid,self.nom)
 
 class Client(models.Model):
     pseudo = models.CharField(max_length=128, unique=True)
@@ -44,6 +58,10 @@ class Question(models.Model):
             return self.contenu_liste.split('\r\n')
         return []
 
+class Categorie(models.Model):
+    catid = models.AutoField(primary_key=True)
+    nom = models.CharField(max_length=1024)
+    parent = models.ManyToManyField("Categorie")
 
 class Variable(models.Model):
     vid = models.AutoField(primary_key=True)
@@ -87,16 +105,35 @@ class Requete(models.Model):
 # Types de ressources
 
 class Ressource(models.Model):
-    resid = models.AutoField(primary_key=True, default=0, unique=True)
-    description = models.TextField(default="")
+    resid = models.AutoField(primary_key=True, unique=True)
+    description = models.TextField(blank=True)
     tags = models.ManyToManyField("Tag", blank=True)
+    commentaires = models.TextField(blank=True)
 
     class Meta:
         abstract = True
 
 class Organisation(Ressource):
     nom = models.CharField(max_length=256)
-    url = models.CharField(max_length=1024)
+    url = models.CharField(max_length=1024, blank=True)
+    code_postal = models.CharField(
+        max_length=6,
+        blank=True,
+        help_text = "Sert à géolocaliser"
+    )
+    adresse = models.CharField(max_length=1024, blank=True)
+    courriel = models.CharField(max_length=1024, blank=True)
+    appartenance = models.CharField(
+        max_length=1024,
+        blank=True,
+        help_text = "Par exemple, pour un·e avocat·e ou notaire, son cabinet."
+    )
+    telephone = models.CharField(max_length=64, blank=True)
+    telecopieur = models.CharField(max_length=64, blank=True)
+    heures_ouverture = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"({self.resid}) {self.nom}"
 
     def to_resultats(self):
         return item_html.format(
@@ -120,6 +157,7 @@ class Documentation(Ressource):
 
 class Camarade(Ressource):
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
+    code_postal = models.CharField(max_length=6, blank=True)
 
     def to_resultats(self):
         return item_html.format(
