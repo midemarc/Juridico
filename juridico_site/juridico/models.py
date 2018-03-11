@@ -152,6 +152,7 @@ class Ressource(models.Model):
     description = models.TextField(blank=True)
     tags = models.ManyToManyField("Tag", blank=True)
     commentaires = models.TextField(blank=True)
+    type_classe = models.CharField(max_length=32, default="", blank=True)
 
     class Meta:
         abstract = True
@@ -210,6 +211,9 @@ class Documentation(Ressource):
             extra_class=" documentation"
         )
 
+    def source(self):
+        return self.nom_source.nom
+
     def __str__(self):
         if self.nom_source != None:
             return "(%d) %s → %s" % (self.resid, self.nom_source.nom, self.nom)
@@ -255,13 +259,13 @@ class Direction(Ressource):
         blank=True
     )
 
-    def get_description(self):
+    def formatted_description(self, requete):
         "Donne la description formattée avec les variables pertinentes."
         if self.variables != "":
             from juridico.methodes import get_valeur
             vs = self.variables.split()
             d = dict(
-                (v, get_valeur(self.requete, v)) for v in vs
+                (v, get_valeur(requete, v)) for v in vs
             )
             desc = self.description.format(*d)
         else:
@@ -289,6 +293,7 @@ class RessourceDeRequete(models.Model):
     resid = models.IntegerField(default=-1)
     poid = models.FloatField(default=0.)
     distance = models.FloatField(null=True, blank=True)
+    type_classe = models.CharField(max_length=32, default="", blank=True)
 
     def get_ressource(self):
         return Ressource.objects.get(resid=self.resid)
