@@ -7,13 +7,23 @@ from collections import Counter
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 #import locale
-from .models import Variable, RessourceDeRequete, Direction, Educaloi
+from .models import Variable, RessourceDeRequete, Direction
 from gensim.models import Doc2Vec
+import pickle
+import re
+from geopy.distance import vincenty
+from django.db.models import Q
 
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
-d2v = Doc2Vec.load("educaloi_cappel_d2v.model")
+d2v = Doc2Vec.load(BASE_DIR+"/educaloi_cappel_d2v.model")
 #locale.setlocale(locale.LC_ALL, "fr_CA.utf-8")
+
+cp_codes, cp_pts = tuple(zip(*pickle.load(open(BASE_DIR+"/codes_postaux.pickle", 'rb'))))
+cp_dict = dict(zip(cp_codes,cp_pts))
+
+from geoip2.database import Reader as georeader_mk
+georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
 
@@ -24,9 +34,42 @@ def str2date(s):
 def date2str(d):
     return d.strftime("%d/%M/%Y")
 
-def fortmatter_date(d):
+def formatter_date(d):
     mois = mois_fr[d.month-1]
     return d.strftime("%-d {mois} %Y").format(mois=mois)
+
+def cp2geo(cp):
+    "À partir du code postal canayen, retourne des coordonnées geo"
+    r = cp_dict.get(re.sub("[^A-Z0-9]","",cp.upper()), None)
+    if r == None:
+        return None
+    else:
+        return (r[1], r[0])
+
+def switch_geo(pt):
+    "Bizzarement, mes coordonnées sont à l'envers (longitude,latitude). Ça les remet à l'endroit."
+    return (pt[1], pt[0])
+
+def plus_proche_org(lat, long, conditions=None, topn=10, max_km=100):
+    """Retourne les topn plus proches organisations.
+    conditions: sous la forme dict où la clé est un nom de TagType et la valeur
+    est un nom de tag. Si ce n'est pas None, alors ne cherche que parmis les
+    objets qui ont le tag correspondant du type de tag correspondant."""
+    #TODO: se donner un plan pour comment sortir les org qui ont pas de coordonnées (e.g. sur appel)
+
+    if conditions == None:
+        pool = Organisation.objects.all()
+    else:
+        pool = Organisation.objects
+        for k, v in conditions:
+            pool = pool.filter(tags__nom=v, tags__type_de_tag__nom=k)
+
+    r = [ (o.distance2pt(lat,long, o)) for o in pool ]
+    x = [ (None, o) for d,o in r if d==None ]
+    r = sorted([ (d, o) for d, o in r if d != None ])
+    r = [ (d, o) for d,o in r if d<=max_km ] + x
+
+    return r[topn]
 
 def rd_gt(r1, r2):
     """Compare deux relativedeltas, détermine si le premier est plus grand que
@@ -88,55 +131,50 @@ def get_top_educaloi(v, topn=10):
     is_el = re.compile("^EL_")
     idx_educaloi = np.nonzero(np.fromiter((is_tag.match(i) !=None for i in d2v.docvecs.index2entity), dtype=bool))[0]
     distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")
-    return list(sorted(zip(distances, (Educaloi.objects.get(artid=int(i[3:])) for i in idx_educaloi))[:topn])
+    return list(sorted(zip(distances, (Documentation.objects.filter(artid_educaloi=int(i[3:])) for i in idx_educaloi))))[:topn]
 
-def add_direction(requete, texte, quand, poid=1.0):
-    d = Direction.objects.create(
-        description = texte,
-        quand = quand
-    )
-    d.save()
-    r2r = RessourceDeRequete.objects.create(
-        requete = requete,
-        resid = d.resid,
-        poid = poid
-    )
-    r2r.save()
+def add_ressource(requete, ressource, poid=1.0):
+    q = RessourceDeRequete.objects.get(requete=requete,resid=ressource.resid)
+    if q != None and q.poid<poid:
+        q.poid=poid
+        q.save()
+    elif q!=None:
+        r2r = RessourceDeRequete.objects.create(
+            requete = requete,
+            resid = ressource.resid,
+            poid = poid
+        )
+        r2r.save()
 
-def add_organisation(requete, nom, desc, url, poid=1.0):
-    d = Organisation.objects.create(
-        description = desc,
-        url = url,
-        nom = nom
-    )
-    d.save()
-    r2r = RessourceDeRequete.objects.create(
-        requete = requete,
-        resid = d.resid,
-        poid = poid
-    )
-    r2r.save()
+def add_documentation(requete,resid):
+    add_ressource(requete, Documentation.objects.get(resid=resid))
 
-def add_documentation(requete, nom, url, poid=1.0):
-    d = Organisation.objects.create(
-        description = desc,
-        url = url,
-        nom = nom
-    )
-    d.save()
-    r2r = RessourceDeRequete.objects.create(
-        requete = requete,
-        resid = d.resid,
-        poid = poid
-    )
-    r2r.save()
+def add_direction(requete,resid):
+    add_ressource(requete, Direction.objects.get(resid=resid))
 
-def add_camarade(requete, client, poid=1.0):
-    d = Organisation.objects.create(
-        description = "",
-        client=client
-    )
-    d.save()
+def add_organisation(requete,resid):
+    add_ressource(requete, Organisation.objects.get(resid=resid))
+
+def add_orgs(requete, conditions, topn=10, poid=1.0):
+    lat = requete.client.latitude
+    long = requete.client.longitude
+
+    if lat == None or long == None:
+        loc = georeader.city(requete.ip).location
+        lat = loc.latitude
+        long = loc.longitude
+
+    for d, o in plus_proche_org(lat, long, conditions, topn=topn, poid=poid):
+        add_ressource(requete, o, poid=poid)
+
+def add_client(requete, client, poid=1.0):
+    d = Organisation.objects.get(client=client)
+    if d == None:
+        d = Organisation.objects.create(
+            description = "",
+            client=client
+        )
+        d.save()
     r2r = RessourceDeRequete.objects.create(
         requete = requete,
         resid = d.resid,
@@ -169,17 +207,17 @@ def question2(requete, reponse):
     r = reponse.reponse
     stocker_valeur(requete, "document_reçu", r)
     if r == "Avis d'augmentation de loyer et de modification d'une autre condition du bail":
-        add_direction(requete,"Vous avez reçu un “Avis d'augmentation de loyer et de modification d'une autre condition du bail”. Cet avis est nécessaire lorsque votre propriétaire veut modifier les conditions de votre bail, telle que le montant du loyer.","[Info]")
-        add_documentation(requete, "Informations sur le renouvellement de bail et les augmentations de loyer", "https://www.educaloi.qc.ca/capsules/le-renouvellement-de-bail-et-la-hausse-de-loyer")
+        add_direction(1)
+        add_documentation(requete, 219)
         return 3
     elif r == "Avis de reprise de logement":
-        add_direction(requete, "Vous avez reçu un avis de reprise de logement. Votre propriétaire doit vous faire parvenir un tel avis écrit pour vous informer de son intention de reprendre le logement pour lui-même ou pour un membre de sa famille (soit ses enfants, ses parents ou une personne directement à sa charge).")
-        add_documentation(requete, "Informations sur la reprise de logement", "https://www.educaloi.qc.ca/capsules/la-reprise-du-logement-et-leviction")
+        add_direction(requete, 2)
+        add_documentation(requete, 223)
         return 4
     elif r == "Avis de réparation ou amélioration majeure":
-        add_direction(requete, "Vous avez reçu un “Avis de réparation ou amélioration majeure”. Cet avis est nécessaire lorsque le propriétaire souhaite apporter des améliorations ou de faire des réparations majeures touchant votre logement.")
-        add_documentation("Informations sur les réparations majeures en logement", "https://www.rdl.gouv.qc.ca/fr/le-logement/travaux-majeurs")
-        # 4.C (n'existe pas encore)
+        add_direction(requete, 3)
+        add_documentation(requete,363) # Informations sur les réparations majeures en logement
+        return 23
     elif r == "Demande introductive d’instance":
         # Appartient au domaine familial
         return 9
@@ -205,20 +243,8 @@ def question4(requete, reponse):
     elif reponse.reponse == "Bail à durée indéterminée":
         return 7
     elif reponse.reponse == "Je ne sais pas":
-        add_direction(requete, "Selon les informations fournies, nous ne pouvons pas calculer si l’avis que votre propriétaire vous a envoyé respecte les délais. Pour déterminer cela, vous pouvez amener les papiers suivants : (1) votre bail écrit <strong>ET</strong> (2) l'avis de modification de bail , au comité logement le plus proche de chez vous, qui vous répondront gratuitement.")
-        add_direction("""<strong>Lorsque l’avis respecte les délais</strong>,
-        <ul>
-            <li>Vous pouvez communiquer votre refus ou votre acceptation de la modification. Si vous ne répondez pas à l’avis, cela équivaudra à une acceptation des modifications. </li>
-            <li>Si vous acceptez la modification, celle-ci prendra effet au terme de la durée du bail qui sera donc reconduit suivant les nouvelles modalités acceptées. </li>
-            <li>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement. </br>
-            À ce moment-vous pouvez :</li>
-            <ul>
-                <li>Essayer de vous entendre avec votre propriétaire pour une hausse que vous seriez capable d’accepter </li>
-                <li>Ne rien faire. Et dans ce cas, il est possible que votre propriétaire laisse tomber, comme il est possible qu’il s’adresse à la Régie du logement s’il souhaite quand même augmenter le loyer.  </li>
-                <li>Si le propriétaire ne va pas à la Régie du logement, votre bail sera reconduit aux mêmes conditions (et donc sans la hausse proposée par votre propriétaire dans l’avis).  <li>
-                <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu.<li>
-            </ul>
-        </ul>""")
+        add_direction(requete, 4)
+        add_direction(requete, 5)
         return -1 # Terminé le parcours
 
 def question5(requete, reponse):
@@ -233,19 +259,11 @@ def question5(requete, reponse):
     elif reponse.reponse == "Bail à durée indéterminée":
         return 19
     elif reponse.reponse == "Je ne sais pas":
-        add_direction(requete, "Selon les informations fournies, nous ne pouvons pas calculer si l’avis que votre propriétaire vous a envoyé respecte les délais. Pour déterminer cela, vous pouvez amener les papiers suivants : (1) votre bail écrit <strong>ET</strong> (2) l'avis de modification de bail , au comité logement le plus proche de chez vous, qui vous répondront gratuitement.")
-        add_direction("""<strong>Lorsque l’avis respecte les délais</strong>,
-        <ul>
-            <li>Vous disposez d’un mois pour répondre à cet avis. </li>
-            <li>Vous pouvez communiquer votre refus ou votre acceptation de la reprise des lieux. </li>
-            <li>Si vous ne répondez pas dans le délai de 1 mois, cela équivaut à un refus. </li>
-            <li>En cas de refus (ou si vous ne repondez pas), le propriétaire peut s’adresser à la Régie du logement.</li>
-            <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec:</li>
-            <ul>
-                <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement.</li>
-                <li>Un avocat spécialiste en droit de logement.</li>
-            </ul>
-        </ul>""")
+        add_direction(requete, 6)
+        add_direction(requete, 7)
+
+        add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Comité Logement"}, topn=5)
+        add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Avocat·e"}, topn=5)
         return -1
 
 def question6(requete,reponse):
@@ -265,59 +283,41 @@ def question6(requete,reponse):
         rd_gt(d6mois,dmois_reception_fin_bail) and \
         not rd_gt(d3mois, dmois_reception_fin_bail): #équivaut à ≥ 3 mois & < 6 mois
 
-        add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé entre 3 et 6 mois avant la fin du bail).")
+        add_direction(requete, 8)
 
         date_limite_reponse = date_reception + timedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
-        add_direction("""
-        <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
-        <p>Vous pouvez communiquer votre refus ou votre acceptation de la modification. Si vous ne répondez pas à l’avis, cela équivaudra à une acceptation des modifications.</p>
-        <p>Si vous acceptez la modification, celle-ci prendra effet au terme de la durée du bail qui sera donc reconduit suivant les nouvelles modalités acceptées.</p>
-        <p>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement. À ce moment, vous pouvez:</p>
-        <ul>
-            <li>Essayer de vous entendre avec votre propriétaire pour une hausse que vous seriez capable d’accepter.</li>
-            <li>Ne rien faire. Et dans ce cas, il est possible que votre propriétaire laisse tomber, comme il est possible qu’il s’adresse à la Régie du logement s’il souhaite quand même augmenter le loyer.</li>
-            <li>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement.</li>
-            <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu.</li>
-        </ul>
-        """ % (fortmatter_date(date_limite_reponse), njours))
+        stocker_valeur(requete, "q6_date_limite_reponse", formatter_date(date_limite_reponse))
+        stocker_valeur(requete, "q6_njours", njours)
+
+        add_direction(requete, 9)
 
     elif duree_bail == "Bail de 12 mois et plus" and \
         (not rd_gt(d6mois,dmois_reception_fin_bail) or \
         rd_gt(d3mois, dmois_reception_fin_bail)):
 
-        add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
-        <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+        add_direction(requete, 10)
 
     elif duree_bail == "Bail de moins de 12 mois" and \
         rd_gt(d2mois,dmois_reception_fin_bail) and \
         not rd_gt(d1mois, dmois_reception_fin_bail):
 
-        add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé entre 3 et 6 mois avant la fin du bail).")
+        add_direction(requete, 8)
 
         date_limite_reponse = date_reception + timedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
-        add_direction("""
-        <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
-        <p>Vous pouvez communiquer votre refus ou votre acceptation de la modification. Si vous ne répondez pas à l’avis, cela équivaudra à une acceptation des modifications.</p>
-        <p>Si vous acceptez la modification, celle-ci prendra effet au terme de la durée du bail qui sera donc reconduit suivant les nouvelles modalités acceptées.</p>
-        <p>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement. À ce moment, vous pouvez:</p>
-        <ul>
-            <li>Essayer de vous entendre avec votre propriétaire pour une hausse que vous seriez capable d’accepter.</li>
-            <li>Ne rien faire. Et dans ce cas, il est possible que votre propriétaire laisse tomber, comme il est possible qu’il s’adresse à la Régie du logement s’il souhaite quand même augmenter le loyer.</li>
-            <li>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement.</li>
-            <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu.</li>
-        </ul>
-        """ % (fortmatter_date(date_limite_reponse), njours))
+        stocker_valeur(requete, "q6_date_limite_reponse", formatter_date(date_limite_reponse))
+        stocker_valeur(requete, "q6_njours", njours)
+
+        add_direction(requete, 11)
 
     elif duree_bail == "Bail de moins de 12 mois" and \
         (not rd_gt(d2mois,dmois_reception_fin_bail) or \
         rd_gt(d1mois, dmois_reception_fin_bail)):
 
-        add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
-        <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+        add_direction(10)
 
     return -1
 
@@ -333,28 +333,19 @@ def question7(requete, reponse):
     if rd_gt(d1mois,dmois_reception_fin_bail) and \
         not rd_gt(d2mois, dmois_reception_fin_bail): #équivaut à ≥ 3 mois & < 6 mois
 
-        add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé entre 3 et 6 mois avant la fin du bail).")
+        add_direction(8)
 
         date_limite_reponse = date_reception + timedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
-        add_direction("""
-        <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
-        <p>Vous pouvez communiquer votre refus ou votre acceptation de la modification. Si vous ne répondez pas à l’avis, cela équivaudra à une acceptation des modifications.</p>
-        <p>Si vous acceptez la modification, celle-ci prendra effet au terme de la durée du bail qui sera donc reconduit suivant les nouvelles modalités acceptées.</p>
-        <p>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement. À ce moment, vous pouvez:</p>
-        <ul>
-            <li>Essayer de vous entendre avec votre propriétaire pour une hausse que vous seriez capable d’accepter.</li>
-            <li>Ne rien faire. Et dans ce cas, il est possible que votre propriétaire laisse tomber, comme il est possible qu’il s’adresse à la Régie du logement s’il souhaite quand même augmenter le loyer.</li>
-            <li>Si vous refusez la modification, votre bail est tout de même reconduit et vous garder votre logement.</li>
-            <li>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu.</li>
-        </ul>
-        """ % (fortmatter_date(date_limite_reponse), njours))
+        stocker_valeur(requete, "q6_date_limite_reponse", formatter_date(date_limite_reponse))
+        stocker_valeur(requete, "q6_njours", njours)
+
+        add_direction(requete, 11)
 
     else:
 
-        add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
-        <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+        add_direction(requete, 10)
 
     return -1
 
@@ -371,49 +362,39 @@ def question18(requete,reponse):
     if duree_bail == "Bail de 6 mois et plus":
         if rd_gte(dmois_reception_fin_bail, d6mois):
 
-            add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé 6 mois ou plus avant la fin du bail).")
+            add_direction(requete, 12)
 
             date_limite_reponse = date_reception + timedelta(months=1)
             njours = (date_limite_reponse-date.today()).days
 
-            add_direction("""
-            <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
-            <p>Vous pouvez communiquer votre refus ou votre acceptation de la reprise des lieux.</p>
-            <p>SSi vous ne répondez pas dans le délai de 1 mois, cela équivaut à un refus.</p>
-            <p>En cas de refus (ou si vous ne repondez pas), le propriétaire peut s’adresser à la Régie du logement.</p>
-            <p>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec&nbsp;:</p>
-            <ul>
-                <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement.</li>
-                <li>Un avocat spécialiste en droit de logement.</li>
-            </ul>
-            """ % (fortmatter_date(date_limite_reponse), njours))
+            stocker_valeur(requete, "q18_date_limite_reponse", formatter_date(date_limite_reponse))
+            stocker_valeur(requete, "q18_njours", njours)
+
+            add_direction(requete, 13)
+
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Comité Logement"}, topn=5)
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Avocat·e"}, topn=5)
 
         else:
-            add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
-            <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+            add_direction(requete, 10)
     elif duree_bail == "Bail de moins de 6 mois":
         if rd_gte(dmois_reception_fin_bail, d1mois):
 
-            add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé 6 mois ou plus avant la fin du bail).")
+            add_direction(requete, 14)
 
             date_limite_reponse = date_reception + timedelta(months=1)
             njours = (date_limite_reponse-date.today()).days
 
-            add_direction("""
-            <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
-            <p>Vous pouvez communiquer votre refus ou votre acceptation de la reprise des lieux.</p>
-            <p>Si vous ne répondez pas dans le délai de 1 mois, cela équivaut à un refus.</p>
-            <p>En cas de refus (ou si vous ne repondez pas), le propriétaire peut s’adresser à la Régie du logement.</p>
-            <p>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec&nbsp;:</p>
-            <ul>
-                <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement.</li>
-                <li>Un avocat spécialiste en droit de logement.</li>
-            </ul>
-            """ % (fortmatter_date(date_limite_reponse), njours))
+            stocker_valeur(requete, "q18_date_limite_reponse", formatter_date(date_limite_reponse))
+            stocker_valeur(requete, "q18_njours", njours)
+
+            add_direction(requete, 15)
+
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Comité Logement"}, topn=5)
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Avocat·e"}, topn=5)
 
         else:
-            add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
-            <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+            add_direction(requete, 10)
     return -1
 
 def question19(requete,reponse):
@@ -426,39 +407,35 @@ def question19(requete,reponse):
 
     if rd_gte(dmois_reception_reprise, d6mois):
 
-        add_direction("Selon l'information que vous nous avez fourni, l'avis de votre propriétaire respecte les délais (envoyé 6 mois ou plus avant la reprise des lieux prévue).")
+        add_direction(requete, 12)
 
         date_limite_reponse = date_reception + timedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
-        add_direction("""
-        <p>Vous disposez d’un mois pour répondre à cet avis. Donc, vous avez jusqu’au %s (soit %d jours).</p>
-        <p>Vous pouvez communiquer votre refus ou votre acceptation de la reprise des lieux.</p>
-        <p>Si vous ne répondez pas dans le délai de 1 mois, cela équivaut à un refus.</p>
-        <p>En cas de refus (ou si vous ne repondez pas), le propriétaire peut s’adresser à la Régie du logement.</p>
-        <p>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec&nbsp;:</p>
-        <ul>
-            <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement.</li>
-            <li>Un avocat spécialiste en droit de logement.</li>
-        </ul>
-        """ % (fortmatter_date(date_limite_reponse), njours))
+        stocker_valeur(requete, "q19_date_limite_reponse", formatter_date(date_limite_reponse))
+        stocker_valeur(requete, "q19_njours", njours)
+
+        add_direction(requete, 16)
+
+        add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Comité Logement"}, topn=5)
+        add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Avocat·e"}, topn=5)
 
     else:
-        add_direction("""<p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé n’est pas valide, car il ne respecte pas les délais.</p>
-        <p>Ainsi, vous pouvez répondre qu’il n’est pas valide ou ne rien répondre.</p>""")
+        add_direction(requete, 10)
 
     return -1
 
-def question20(requete,reponse):
+def question23(requete,reponse):
     # Date de début des travaux
     stocker_valeur(requete,"date_debut_travaux", reponse.reponse)
 
     date_reception = str2date(get_valeur(requete, "date_reception"))
     date_debut_travaux = str2date(reponse.reponse)
 
-    return 21
+    return 24
 
-def question21(requete,reponse):
+def question24(requete,reponse):
+    # Évacué pour plus d'une semaine?
     date_reception = str2date(get_valeur(requete, "date_reception"))
     date_debut_travaux = str2date(get_valeur(requete, "date_debut_travaux"))
     njours = (date_debut_travaux-date_reception).days
@@ -468,80 +445,29 @@ def question21(requete,reponse):
 
     if rep == "non":
         if njours < 10:
-            add_direction("""
-            <p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé ne respecte pas les délais, car il est nécessaire d’envoyer l’avis de réparation au moins 10 jours avant le début de travaux.</p>
-            <p>Cet avis devait, de plus, mentionner les choses suivantes&nbsp;:</p>
-            <ul>
-            <li>la nature des travaux</li>
-            <li>la date du début des travaux et l'estimation de leur durée</li>
-            <li>toutes les autres conditions dans lesquelles s'effectueront les travaux s'ils sont susceptibles de diminuer sérieusement la jouissance des lieux</li>
-            <li>Et s’il y avait une évacuation, l’avis devait en plus mentionner la période d’évacuation et le montant offert à titre d’indemnité pour couvrir les dépenses liées à celle-ci</li>
-            </ul>
-            <p>Vous pouvez communiquer avec lui pour lui énoncer que son avis ne respecte pas les délais.</p>
-            <p>Dans ce cas, votre propriétaire pourra peut-être vous renvoyer un avis qui respecte les délais.</p>
-            """)
+            add_direction(requete, 17)
         else:
-            add_direction("""
-            <p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé respecte les délais.</p>
-            <p>Cet avis devait mentionner les choses suivantes&nbsp;:</p>
-            <ul>
-            <li>la nature des travaux</li>
-            <li>la date du début des travaux et l'estimation de leur durée</li>
-            <li>toutes les autres conditions dans lesquelles s'effectueront les travaux s'ils sont susceptibles de diminuer sérieusement la jouissance des lieux</li>
-            <li>Et s’il y avait une évacuation, l’avis devait en plus mentionner la période d’évacuation et le montant offert à titre d’indemnité pour couvrir les dépenses liées à celle-ci</li>
-            </ul>
-            """)
+            add_direction(requete, 18)
             date_max = date_reception + timedelta(days=10)
-            add_direction("""
-            <p>Vous disposez d’un délai de 10 jours pour répondre à cet avis. Donc, vous avez jusqu’au {date_max}.</p>
-            <p>Vous pouvez refuser ou accepter l’évacuation.</p>
-            <p>Si vous ne répondez pas, vous êtes présumé avoir refusé de quitter les lieux.</p>
-            <p>Si vous refusez (ou si vous ne répondez pas), votre propriétaire pourra alors, dans les 10 jours suivant votre refus, s'adresser à la Régie du logement qui statuera sur l'opportunité de l'évacuation et pourra fixer les conditions qu'elle estime justes et raisonnables.</p>
-            <p>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec&nbsp;:</p>
-            <ul>
-            <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement</li>
-            <li>Un avocat spécialiste en droit de logement</li>
-            </ul>
-            """.format())
+            stocker_valeur(requete, "date_max", formatter_date(date_max))
+
+            add_direction(requete, 19)
+
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Comité Logement"}, topn=5)
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Avocat·e"}, topn=5)
+
     if rep == "oui":
         if rd_gt(d3mois, d_reception_debut_travaux):
-            add_direction("""
-            <p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé ne respecte pas les délais, car il est nécessaire d’envoyer l’avis de réparation au moins 3 mois avant le début de travaux, lorsque l’évacuation sera d’une semaine ou plus.</p>
-            <p>Cet avis devait, de plus, mentionner les choses suivantes&nbsp;:</p>
-            <ul>
-            <li>la nature des travaux</li>
-            <li>la date du début des travaux et l'estimation de leur durée</li>
-            <li>toutes les autres conditions dans lesquelles s'effectueront les travaux s'ils sont susceptibles de diminuer sérieusement la jouissance des lieux</li>
-            <li>La période d’évacuation</li>
-            <li>Le montant offert à titre d’indemnité pour couvrir les dépenses liées à l’évacuation des lieux</li>
-            </ul>
-            <p>Vous pouvez communiquer avec votre propriétaire pour lui énoncer que son avis ne respecte pas les délais.</p>
-            <p>Dans ce cas, votre propriétaire pourra peut-être vous renvoyer un avis qui respecte les délais.</p>
-            """)
+            add_direction(requete, 20)
         else:
-            add_direction("""
-            <p>Selon les informations fournies, l’avis que votre propriétaire vous a envoyé respecte les délais.</p>
-            <p>Cet avis devait mentionner les choses suivantes&nbsp;:</p>
-            <ul>
-            <li>la nature des travaux</li>
-            <li>la date du début des travaux et l'estimation de leur durée</li>
-            <li>toutes les autres conditions dans lesquelles s'effectueront les travaux s'ils sont susceptibles de diminuer sérieusement la jouissance des lieux</li>
-            <li>La période d’évacuation</li>
-            <li>Le montant offert à titre d’indemnité pour couvrir les dépenses liées à l’évacuation des lieux</li>
-            </ul>
-            """)
+            add_direction(requete, 21)
             date_max = date_reception + timedelta(days=10)
-            add_direction("""
-            <p>Vous disposez d’un délai de 10 jours pour répondre à cet avis. Donc, vous avez jusqu’au {date_max}.</p>
-            <p>Vous pouvez refuser ou accepter l’évacuation.</p>
-            <p>Si vous ne répondez pas, vous êtes présumé avoir refusé de quitter les lieux.</p>
-            <p>Si vous refusez (ou si vous ne répondez pas), votre propriétaire pourra alors, dans les 10 jours suivant votre refus, s'adresser à la Régie du logement qui statuera sur l'opportunité de l'évacuation et pourra fixer les conditions qu'elle estime justes et raisonnables.</p>
-            <p>Si le propriétaire s’adresse à la Régie du logement, celle-ci vous transmettra un avis d’audience en temps et lieu. Et vous pouvez communiquer avec&nbsp;:</p>
-            <ul>
-            <li>Votre comité logement le plus proche pour vous aider dans une stratégie à présenter devant la Régie du logement</li>
-            <li>Un avocat spécialiste en droit de logement</li>
-            </ul>
-            """.format())
+            stocker_valeur(requete, "date_max", formatter_date(date_max))
+
+            add_direction(requete, 19)
+
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Comité Logement"}, topn=5)
+            add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Avocat·e"}, topn=5)
     return -1
 
 # Questions de Stéfanny
@@ -591,13 +517,10 @@ def question17(requete,reponse):
 
     if F8 == "oui":
         if F1 == "non":
-            add_direction("Vous devez vous présenter à la cour le {date_cour} et indiquer votre intention de contester les conclusions dans la demande.".format(date_cour=F7))
+            stocker_valeur(requete, "q17_date_cour", formatter_date(F7))
+            add_direction(requete, 23)
         else:
-            add_direction("""
-            <p>Si vous désirez vous représentez seul, vous devez remplir le formulaire <a href="https://www.justice.gouv.qc.ca/fileadmin/user_upload/contenu/documents/Fr__francais_/centredoc/formulaires/vos-differends/sj554.pdf" target="_blank">"Réponse" (SJ-554)</a> et le déposer au greffe du tribunal indiqué en haut de la demande.</p>
-            <p>Notez que vous aurez à défrayer des frais.</p>
-            """)
+            add_direction(requete, 22)
     if F2 == "oui":
-        add_direction("""<p>Vous êtes admissible au programme provincial de médiation familiale. Vous avez donc droit à 5 heures gratuite de médiation.</p>
-        <p>Contactez la partie adverse pour proposer la médiation. Vous trouverez ci-bas une liste de médiateurs accrédités près de vous.</p>""")
+        add_direction(requete, 24)
     return -1
