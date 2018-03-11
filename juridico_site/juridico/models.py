@@ -287,8 +287,12 @@ class RessourceDeRequete(models.Model):
     rrid = models.AutoField(primary_key=True)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
     resid = models.IntegerField(default=-1)
+<<<<<<< HEAD
     poid = models.FloatField(default=0.)
     distance = models.FloatField(null=True, blank=True)
+=======
+    poids = models.FloatField(default=0.)
+>>>>>>> cee78a4046134f1097086a98031a85906a21a0ee
 
     def get_ressource(self):
         return Ressource.objects.get(resid=self.resid)

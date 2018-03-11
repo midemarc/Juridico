@@ -232,21 +232,35 @@ def api_reponses(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# def api_next_question(request, request_id: int, reponse_id: int):
 def api_next_question(request):
     """Gets the next question after a specific answer
 
     :return: a serialized **models.Question** object.
+
+    :return: A JSON object with the question id as the value of 'question_id' key if *id_only* has been passed as HTTP argument
     """
     # if request.method == 'GET':
     try:
-        print(f'request_id {request.GET["reqid"]}')
-        reponse_id: int = int(request.GET["reqid"])
-        request_id: int = int(request.POST['repid'])
+        request_id: int = int(request.GET["reqid"])
+        reponse_id: int = int(request.GET['repid'])
+        id_only: bool = bool(int(request.GET.get('id_only', '0')))
         o_reponse = Reponse.objects.get(repid=reponse_id)
         o_request = Requete.objects.get(reqid=request_id)
         method = getattr(met, f'question{o_reponse.question_id}')
-        return method(requete=o_request, reponse=o_reponse)
+        next_question_id = method(requete=o_request, reponse=o_reponse)
+
+        if not next_question_id:
+            return JsonResponse({})
+
+        o_question = Question.objects.get(qid=next_question_id)
+
+        if id_only:
+            return JsonResponse({
+                'question_id': o_question.qid
+            })
+
+        serializer = QuestionSerializer(o_question)
+        return JsonResponse(serializer.data)
     except AttributeError:
         raise NotImplementedError('')
     pass

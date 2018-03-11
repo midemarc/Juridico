@@ -6,6 +6,7 @@ from juridico_site.settings import BASE_DIR
 from collections import Counter
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
+<<<<<<< HEAD
 #import locale
 from .models import Variable, RessourceDeRequete, Direction
 from gensim.models import Doc2Vec
@@ -13,6 +14,9 @@ import pickle
 import re
 from geopy.distance import vincenty
 from django.db.models import Q
+=======
+from .models import *
+>>>>>>> cee78a4046134f1097086a98031a85906a21a0ee
 
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
@@ -28,7 +32,7 @@ georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
 
 def str2date(s):
-    d,m,y = tuple(int(i) for i in re.split("[/-. ]+", self.reponse.strip()))
+    d,m,y = tuple(int(i) for i in re.split(r'[/\-. ]+', s.reponse.strip()))
     return date(y,m,d)
 
 def date2str(d):
@@ -125,6 +129,7 @@ def desc2domaine(description_cas, dom_logement=1, dom_famille=2):
     else:
         return dom_famille
 
+<<<<<<< HEAD
 def get_top_educaloi(v, topn=10):
     """Renvoie les pages educaloi les plus similaires au vecteur soumis"""
 
@@ -179,11 +184,67 @@ def add_client(requete, client, poid=1.0):
         requete = requete,
         resid = d.resid,
         poid = poid
+=======
+
+def add_direction(requete: Requete, texte: str, quand: str):
+    d, _ = Direction.objects.get_or_create(
+        description = texte,
+        quand = quand
+    )
+    d.save()
+    r2r, _ = RessourceDeRequete.objects.get_or_create(
+        requete=requete,
+        resid=d.resid,
+        poids=1.
+    )
+    r2r.save()
+
+def add_organisation(requete, nom, desc, url):
+    d, _ = Organisation.objects.get_or_create(
+        description = desc,
+        url = url,
+        nom = nom
+    )
+    d.save()
+    r2r, _ = RessourceDeRequete.objects.get_or_create(
+        requete = requete,
+        resid = d.resid,
+        poids=1.
+    )
+    r2r.save()
+
+
+def add_documentation(requete, *, nom='', desc='', url=''):
+    d, _ = Documentation.objects.get_or_create(
+        description = desc,
+        url = url,
+        nom = nom
+    )
+    d.save()
+    r2r, _ = RessourceDeRequete.objects.get_or_create(
+        requete = requete,
+        resid = d.resid,
+        poids=1.
+    )
+    r2r.save()
+
+
+def add_camarade(requete: Requete, client: Client):
+    organisation, _ = Organisation.objects.get_or_create(
+        description = "",
+        client=client
+    )
+    organisation.save()
+    r2r, _ = RessourceDeRequete.objects.get_or_create(
+        requete = requete,
+        resid = organisation.resid,
+        poids=1.
+>>>>>>> cee78a4046134f1097086a98031a85906a21a0ee
     )
     r2r.save()
 
 def stocker_valeur(requete, nom, val):
-    v = Variable.objects.get_or_create(
+    v, _ = Variable.objects.get_or_create(
         nom=nom,
         requete=requete,
         valeur=val
@@ -207,6 +268,7 @@ def question2(requete, reponse):
     r = reponse.reponse
     stocker_valeur(requete, "document_reçu", r)
     if r == "Avis d'augmentation de loyer et de modification d'une autre condition du bail":
+<<<<<<< HEAD
         add_direction(1)
         add_documentation(requete, 219)
         return 3
@@ -218,6 +280,30 @@ def question2(requete, reponse):
         add_direction(requete, 3)
         add_documentation(requete,363) # Informations sur les réparations majeures en logement
         return 23
+=======
+        add_direction(requete,"Vous avez reçu un “Avis d'augmentation de loyer et de modification d'une autre condition du bail”. Cet avis est nécessaire lorsque votre propriétaire veut modifier les conditions de votre bail, telle que le montant du loyer.","[Info]")
+        add_documentation(
+            requete,
+            desc="Informations sur le renouvellement de bail et les augmentations de loyer",
+            url="https://www.educaloi.qc.ca/capsules/le-renouvellement-de-bail-et-la-hausse-de-loyer"
+        )
+        return 3
+    elif r == "Avis de reprise de logement":
+        add_direction(requete, "Vous avez reçu un avis de reprise de logement. Votre propriétaire doit vous faire parvenir un tel avis écrit pour vous informer de son intention de reprendre le logement pour lui-même ou pour un membre de sa famille (soit ses enfants, ses parents ou une personne directement à sa charge).")
+        add_documentation(
+            requete,
+            desc="Informations sur la reprise de logement",
+            url="https://www.educaloi.qc.ca/capsules/la-reprise-du-logement-et-leviction")
+        return 4
+    elif r == "Avis de réparation ou amélioration majeure":
+        add_direction(requete, "Vous avez reçu un “Avis de réparation ou amélioration majeure”. Cet avis est nécessaire lorsque le propriétaire souhaite apporter des améliorations ou de faire des réparations majeures touchant votre logement.")
+        add_documentation(
+            requete,
+            desc="Informations sur les réparations majeures en logement",
+            url="https://www.rdl.gouv.qc.ca/fr/le-logement/travaux-majeurs"
+        )
+        # 4.C (n'existe pas encore)
+>>>>>>> cee78a4046134f1097086a98031a85906a21a0ee
     elif r == "Demande introductive d’instance":
         # Appartient au domaine familial
         return 9
@@ -226,9 +312,9 @@ def question3(requete, reponse):
     # À quelle date avez-vous reçu ce document?
     stocker_valeur(requete, "date_reception", reponse.reponse)
 
-    if r == "Avis d'augmentation de loyer et de modification d'une autre condition du bail":
+    if reponse == "Avis d'augmentation de loyer et de modification d'une autre condition du bail":
         return 4
-    elif r in ("Avis de reprise de logement", "Avis de réparation ou amélioration majeure"):
+    elif reponse in ("Avis de reprise de logement", "Avis de réparation ou amélioration majeure"):
         return 5
 
 def question4(requete, reponse):
