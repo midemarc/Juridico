@@ -8,3 +8,7 @@ scipy==1.0.0
 six==1.11.0
 treetaggerwrapper==2.2.3
 typing==3.6.4
+gensim==3.4.0
+geopy==1.11.0
+django-extensions==2.0.5
+geoip2==2.7.0

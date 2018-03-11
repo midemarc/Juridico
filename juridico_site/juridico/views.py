@@ -14,6 +14,13 @@ import juridico.methodes as met
 
 from .forms import *
 
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
 
 def index(request):
     return redirect("requete/client1")
@@ -27,7 +34,8 @@ def question0(request):
     # print('question0------------')
     requete = Requete.objects.create(
         description_cas = reqcontent["description_cas"],
-        client = Client.objects.get(cid=int(reqcontent["cid"]))
+        client = Client.objects.get(cid=int(reqcontent["cid"])),
+        ip = get_client_ip(request)
     )
     requete.save()
 
@@ -260,4 +268,9 @@ def api_next_question(request):
         return JsonResponse(serializer.data)
     except AttributeError:
         raise NotImplementedError('')
+    pass
+
+
+def api_resultats(request):
+    """Retourne les résultats. Trois types de résultats: des org"""
     pass
