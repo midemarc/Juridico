@@ -272,6 +272,30 @@ def api_resultats(request):
         request_id: int = int(request.GET["reqid"])
         req = Requete.objects.get(reqid=request_id)
 
+        # Populer les résultats
+        n_orgs = RessourceDeRequete.objects.filter(
+                type_classe="Organisation",
+                requete=req
+                ).count()
+        n_docs =RessourceDeRequete.objects.filter(
+                type_classe="Documentation",
+                requete=req
+                ).count()
+
+        compte_desire = 10
+        from methodes import get_top_educaloi, add_orgs, add_documentation
+
+        if n_orgs < compte_desire:
+            add_orgs(req, conditions=None, topn=compte_desire-n_orgs)
+
+        if n_docs < compte_desire:
+            v = req.get_desc_vector()
+            for d, o in get_top_educaloi(v,topn=compte_desire-n_docs):
+                add_documentation(req, o.resid)
+
+
+        # Les convertir en json pour les envoyer à angular
+
         docu_objs = DocumentationSerializer(
             RessourceDeRequete.objects.filter(
                 type_classe="Documentation",
