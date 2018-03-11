@@ -1,6 +1,7 @@
 from django.db import models
 from datetime import datetime, timedelta, date
 import re
+from methods import text2vec
 
 # Create your models here.
 
@@ -35,6 +36,11 @@ class Client(models.Model):
     date_modif = models.DateTimeField(auto_now=True)
     courriel = models.EmailField()
     tags = models.ManyToManyField("Tag", blank=True)
+    types_de_droit = models.ManyToManyField(
+        "Categorie",
+        blank=True,
+        help_text="Les types de droit qui caractérisent l'expérience juridique de la personne"
+        )
 
 class Question(models.Model):
     qid = models.AutoField(primary_key=True)
@@ -59,6 +65,8 @@ class Question(models.Model):
         return []
 
 class Categorie(models.Model):
+    # Les catégories concernent le contenu, là où les Tags concernent des
+    # attributs divers (spécialité, langue, etc.) utiles pour l'usager·e
     catid = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=1024)
     parent = models.ManyToManyField("Categorie")
@@ -100,7 +108,17 @@ class Requete(models.Model):
     date_modif = models.DateTimeField(auto_now=True)
 
     description_cas = models.TextField()
+    description_vec = None
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
+
+    def get_desc_vector(self):
+        if self.description_vec == None:
+            self.description_vec = text2vec(self.description_cas)
+        return self.description_vec
+
+    def get_requete_educaloi(self, topn=10):
+        return [i[1] for i in get_top_educaloi(self.get_desc_vector())]
+
 
 # Types de ressources
 
@@ -185,3 +203,24 @@ class RessourceDeRequete(models.Model):
 
     def get_ressource(self):
         return Ressource.objects.get(resid=self.resid)
+
+class Educaloi(Ressource):
+    nom = models.CharField(max_length=256, blank=True)
+    url = models.CharField(max_length=1024)
+    artid = models.IntegerField(unique=True)
+    categorie_educaloi = models.CharField(max_length=256)
+
+    def to_resultats(self):
+        return item_html.format(
+            url=self.url,
+            titre=self.nom,
+            description=self.description,
+            extra_class=" documentation"
+        )
+
+class EducaloiCategsPonderees(models.Model):
+    ecpid = models.AutoField(primary_key=True)
+    rang = models.IntegerField()
+    distance = models.FloatField()
+    article = models.ForeignKey("Educaloi", null=True, on_delete=models.CASCADE)
+    categorie = models.ForeignKey("Categorie", on_delete=models.CASCADE)

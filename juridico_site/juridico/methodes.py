@@ -1,17 +1,18 @@
 import re
 from treetaggerwrapper import TreeTagger
 import numpy as np
-from scipy.spatial.distance import cosine
+from scipy.spatial.distance import cosine, cdist
 from juridico_site.settings import BASE_DIR
 from collections import Counter
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 #import locale
-from .models import Variable, RessourceDeRequete, Direction
-
+from .models import Variable, RessourceDeRequete, Direction, Educaloi
+from gensim.models import Doc2Vec
 
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
+d2v = Doc2Vec.load("educaloi_cappel_d2v.model")
 #locale.setlocale(locale.LC_ALL, "fr_CA.utf-8")
 
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
@@ -47,7 +48,21 @@ def rd_gte(r1, r2):
     # If they're actually equal:
     return False
 
+def text2vec(description_cas):
+    "Convertit du texte en vecteur sur l'espace du modèle Doc2Vec d2v"
+    tagger = TreeTagger(TAGLANG="fr")
+    t = [ ln.split("\t") for ln in tagger.tag_text(description_cas.lower()) ]
+    t = [ i[2] for i in t if len(i)==3 ]
+    t = [ i for i in t for i in d2v.wv.index2entity ]
+
+    return d2v.infer_vector(t)
+
 def desc2domaine(description_cas, dom_logement=1, dom_famille=2):
+    """Classifieur: détermine si la description appartient au droit de la
+    famille ou au droit du logement.
+    TODO: remplacer par une fonction qui utilise les doc2vec (je fais pas trop
+    confiance au nearest neighbor — c'est presque toujours le pire classifieur)
+    """
     tagger = TreeTagger(TAGLANG="fr")
     v = np.zeros(len(mots))
     t = [ ln.split("\t") for ln in tagger.tag_text(description_cas) ]
@@ -67,7 +82,15 @@ def desc2domaine(description_cas, dom_logement=1, dom_famille=2):
     else:
         return dom_famille
 
-def add_direction(requete, texte, quand):
+def get_top_educaloi(v, topn=10):
+    """Renvoie les pages educaloi les plus similaires au vecteur soumis"""
+
+    is_el = re.compile("^EL_")
+    idx_educaloi = np.nonzero(np.fromiter((is_tag.match(i) !=None for i in d2v.docvecs.index2entity), dtype=bool))[0]
+    distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")
+    return list(sorted(zip(distances, (Educaloi.objects.get(artid=int(i[3:])) for i in idx_educaloi))[:topn])
+
+def add_direction(requete, texte, quand, poid=1.0):
     d = Direction.objects.create(
         description = texte,
         quand = quand
@@ -76,11 +99,11 @@ def add_direction(requete, texte, quand):
     r2r = RessourceDeRequete.objects.create(
         requete = requete,
         resid = d.resid,
-        poid = 1.
+        poid = poid
     )
     r2r.save()
 
-def add_organisation(requete, nom, desc, url):
+def add_organisation(requete, nom, desc, url, poid=1.0):
     d = Organisation.objects.create(
         description = desc,
         url = url,
@@ -90,11 +113,11 @@ def add_organisation(requete, nom, desc, url):
     r2r = RessourceDeRequete.objects.create(
         requete = requete,
         resid = d.resid,
-        poid = 1.
+        poid = poid
     )
     r2r.save()
 
-def add_documentation(requete, nom, url):
+def add_documentation(requete, nom, url, poid=1.0):
     d = Organisation.objects.create(
         description = desc,
         url = url,
@@ -104,11 +127,11 @@ def add_documentation(requete, nom, url):
     r2r = RessourceDeRequete.objects.create(
         requete = requete,
         resid = d.resid,
-        poid = 1.
+        poid = poid
     )
     r2r.save()
 
-def add_camarade(requete, client):
+def add_camarade(requete, client, poid=1.0):
     d = Organisation.objects.create(
         description = "",
         client=client
@@ -117,7 +140,7 @@ def add_camarade(requete, client):
     r2r = RessourceDeRequete.objects.create(
         requete = requete,
         resid = d.resid,
-        poid = 1.
+        poid = poid
     )
     r2r.save()
 
@@ -127,16 +150,20 @@ def stocker_valeur(requete, nom, val):
         requete=requete,
         valeur=val
     )
-    v.save
+    v.save()
 
 def get_valeur(requete, nom):
-    return Variable.objects.get(nom=nom).vale
+    return Variable.objects.get(nom=nom).valeur
+
+#################
+# Les Questions #
+#################
 
 def question1(requete, reponse):
     if reponse.reponse.lower() == "oui":
         return 2
     else:
-        return None #TODO: À changer
+        return -1
 
 def question2(requete, reponse):
     r = reponse.reponse
@@ -573,3 +600,4 @@ def question17(requete,reponse):
     if F2 == "oui":
         add_direction("""<p>Vous êtes admissible au programme provincial de médiation familiale. Vous avez donc droit à 5 heures gratuite de médiation.</p>
         <p>Contactez la partie adverse pour proposer la médiation. Vous trouverez ci-bas une liste de médiateurs accrédités près de vous.</p>""")
+    return -1
