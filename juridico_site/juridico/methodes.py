@@ -208,23 +208,31 @@ def question2(requete, reponse):
     elif r == "Avis de reprise de logement":
         add_direction(requete, 2)
         add_documentation(requete, 223)
-        return 4
+        return 3
     elif r == "Avis de réparation ou amélioration majeure":
         add_direction(requete, 3)
         add_documentation(requete,363) # Informations sur les réparations majeures en logement
-        return 23
+        return 3
     elif r == "Demande introductive d’instance":
         # Appartient au domaine familial
         return 9
+    else:
+        return -1 # Pour les cas non-traités...
 
 def question3(requete, reponse):
     # À quelle date avez-vous reçu ce document?
     stocker_valeur(requete, "date_reception", reponse.reponse)
 
-    if reponse == "Avis d'augmentation de loyer et de modification d'une autre condition du bail":
+    document_recu = get_valeur(requete, "document_reçu")
+
+    if document_recu == "Avis d'augmentation de loyer et de modification d'une autre condition du bail":
         return 4
-    elif reponse in ("Avis de reprise de logement", "Avis de réparation ou amélioration majeure"):
+    elif document_recu == "Avis de reprise de logement":
         return 5
+    elif document_recu == "Avis de réparation ou amélioration majeure":
+        return 23
+    else:
+        return -1
 
 def question4(requete, reponse):
     # Quelle est la durée de votre bail?
