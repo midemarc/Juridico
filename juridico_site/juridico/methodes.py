@@ -7,7 +7,7 @@ from collections import Counter
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 #import locale
-from .models import Variable, RessourceDeRequete, Direction
+from .models import Variable, RessourceDeRequete, Direction, Documentation, Organisation
 from gensim.models import Doc2Vec
 import pickle
 import re
@@ -134,17 +134,12 @@ def get_top_educaloi(v, topn=10):
     return list(sorted(zip(distances, (Documentation.objects.filter(artid_educaloi=int(i[3:])) for i in idx_educaloi))))[:topn]
 
 def add_ressource(requete, ressource, poid=1.0):
-    q = RessourceDeRequete.objects.get(requete=requete,resid=ressource.resid)
-    if q != None and q.poid<poid:
-        q.poid=poid
-        q.save()
-    elif q!=None:
-        r2r = RessourceDeRequete.objects.create(
-            requete = requete,
-            resid = ressource.resid,
-            poid = poid
-        )
-        r2r.save()
+    q, _ = RessourceDeRequete.objects.update_or_create(
+        requete=requete,
+        resid=ressource.resid,
+        defaults = {"poid": poid}
+    )
+    q.save()
 
 def add_documentation(requete,resid):
     add_ressource(requete, Documentation.objects.get(resid=resid))
@@ -183,13 +178,11 @@ def add_client(requete, client, poid=1.0):
     r2r.save()
 
 def stocker_valeur(requete, nom, val):
-    v, nouveau = Variable.objects.get_or_create(
+    v, _ = Variable.objects.update_or_create(
         nom=nom,
         requete=requete,
-        valeur=val
+        defaults = {"valeur": val}
     )
-    if not nouveau:
-        v.valeur=val
     v.save()
 
 def get_valeur(requete, nom):
@@ -209,7 +202,7 @@ def question2(requete, reponse):
     r = reponse.reponse
     stocker_valeur(requete, "document_reçu", r)
     if r == "Avis d'augmentation de loyer et de modification d'une autre condition du bail":
-        add_direction(1)
+        add_direction(requete,1)
         add_documentation(requete, 219)
         return 3
     elif r == "Avis de reprise de logement":
