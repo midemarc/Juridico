@@ -133,22 +133,23 @@ def get_top_educaloi(v, topn=10):
     distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")
     return list(sorted(zip(distances, (Documentation.objects.filter(artid_educaloi=int(i[3:])) for i in idx_educaloi))))[:topn]
 
-def add_ressource(requete, ressource, poid=1.0):
+def add_ressource(requete, ressource, poid=1.0, typ=""):
     q, _ = RessourceDeRequete.objects.update_or_create(
         requete=requete,
         resid=ressource.resid,
-        defaults = {"poid": poid}
+        defaults = {"poid": poid},
+        type_classe = typ
     )
     q.save()
 
 def add_documentation(requete,resid):
-    add_ressource(requete, Documentation.objects.get(resid=resid))
+    add_ressource(requete, Documentation.objects.get(resid=resid), typ="Documentation")
 
 def add_direction(requete,resid):
-    add_ressource(requete, Direction.objects.get(resid=resid))
+    add_ressource(requete, Direction.objects.get(resid=resid), typ="Direction")
 
 def add_organisation(requete,resid):
-    add_ressource(requete, Organisation.objects.get(resid=resid))
+    add_ressource(requete, Organisation.objects.get(resid=resid), typ="Organisation")
 
 def add_orgs(requete, conditions, topn=10, poid=1.0):
     lat = requete.client.latitude

@@ -8,7 +8,7 @@ from django.core import serializers
 from typing import List
 from django.views.decorators.csrf import csrf_exempt
 
-from juridico.serializers import QuestionSerializer, ReponseSerializer
+from juridico.serializers import QuestionSerializer, ReponseSerializer, DocumentationSerializer, OrganisationSerializer
 from .models import *
 import juridico.methodes as met
 
@@ -268,4 +268,45 @@ def api_next_question(request):
 
 def api_resultats(request):
     """Retourne les résultats. Trois types de résultats: des org"""
+    try:
+        request_id: int = int(request.GET["reqid"])
+        req = Requete.objects.get(reqid=request_id)
+
+        docu_objs = DocumentationSerializer(
+            RessourceDeRequete.objects.filter(
+                type_classe="Documentation",
+                requete=req
+                ),
+            many=True
+        ).data
+
+        org_objs = OrganisationSerializer(
+            RessourceDeRequete.objects.filter(
+                type_classe="Organisation",
+                requete=req
+                ),
+            many=True
+        ).data
+
+        dir_objs = [
+            {
+                "resid": o.resid,
+                "description": Direction.objects.get(resid=o.resid).formatted_description(req)
+            }
+            for o in RessourceDeRequeteobjects.filter(
+                type_classe="Direction",
+                requete=req
+                )
+        ]
+
+        return JsonResponse({
+            "directions": dir_objs,
+            "documentation": docu_objs,
+            "organisations": org_objs
+        })
+
+    except AttributeError:
+        raise NotImplementedError('')
+
+
     pass
