@@ -183,11 +183,13 @@ def add_client(requete, client, poid=1.0):
     r2r.save()
 
 def stocker_valeur(requete, nom, val):
-    v, _ = Variable.objects.get_or_create(
+    v, nouveau = Variable.objects.get_or_create(
         nom=nom,
         requete=requete,
         valeur=val
     )
+    if not nouveau:
+        v.valeur=val
     v.save()
 
 def get_valeur(requete, nom):

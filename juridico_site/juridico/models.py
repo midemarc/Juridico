@@ -96,7 +96,7 @@ class Categorie(models.Model):
 
 class Variable(models.Model):
     vid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=32, unique=True)
+    nom = models.CharField(max_length=32)
     valeur = models.CharField(max_length=1024)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
 

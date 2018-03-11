@@ -264,3 +264,8 @@ def api_next_question(request):
     except AttributeError:
         raise NotImplementedError('')
     pass
+
+
+def api_resultats(request):
+    """Retourne les résultats. Trois types de résultats: des org"""
+    pass
