@@ -244,6 +244,11 @@ def api_next_question(request):
         if not next_question_id:
             return JsonResponse({})
 
+        if next_question_id == -1:
+            return JsonResponse({
+                'question_id': next_question_id
+            })
+
         o_question = Question.objects.get(qid=next_question_id)
 
         if id_only:
