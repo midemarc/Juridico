@@ -10,6 +10,37 @@ item_html = """<div class="item{extra_class}">
 <div class="description"></div>
 </div>"""
 
+def formfield2html(typ, name, value=None, choix=[], disabled=False):
+    dis = " disabled" if disabled else ""
+    if typ == "t":
+        val = value if value else ""
+        r = f'<textarea name="{name}" rows="8" cols="80"{dis}>{val}</textarea>'
+    elif typ == "e":
+        val = value if value else 0
+        r = f'<input type="number" name="{name}" value="{val}"{dis}>'
+    elif typ == "f":
+        val = value if value else 0
+        r = f'<input type="text" name="{name}" value="{val}"{dis}>'
+    elif typ == "b":
+        val = value if value else False
+        if val:
+            opt = '<option value="oui" selected>Oui</option><option value="non">Non</option>'
+        else:
+            opt = '<option value="oui">Oui</option><option value="non" selected>Non</option>'
+        r = f'<select name="{name}"{dis}>{opt}</select>'
+    elif typ == "d":
+        did =  ' id="datepicker"' if not disabled else ""
+        r = f'<input type="text" name="{name}"{did}>'
+
+    elif typ == "l":
+        val = value if value else choix[0]
+        opt = ""
+        for c in choix:
+            sel = " selected" if c == val else ""
+            opt+= f'\n<option value="{c}"{sel}>{c}</option>'
+        r = f'<select name="{name}"{dis}>{opt}</select>'
+    return r
+
 
 class Tag(models.Model):
     tid = models.AutoField(primary_key=True)
@@ -84,6 +115,15 @@ class Question(models.Model):
     def __str__(self):
         return "(%d) %s" % (self.qid, self.nom)
 
+    def get_html(self):
+        return formfield2html(
+            typ=self.reponse_type,
+            name="reponse",
+            choix=self.contenu_liste.split("\n"),
+            disabled=False
+        )
+
+
 class Categorie(models.Model):
     # Les catégories concernent le contenu, là où les Tags concernent des
     # attributs divers (spécialité, langue, etc.) utiles pour l'usager·e
@@ -110,7 +150,7 @@ class Reponse(models.Model):
     date_modif = models.DateTimeField(auto_now=True)
 
     def get_value(self):
-        rtype = self.question.reponse_type
+        r = self.question.reponse_type
         if r == "t" or r == "l": return self.reponse
         elif r=="e": return int(self.reponse)
         elif r=="f": return float(self.reponse)
@@ -121,9 +161,16 @@ class Reponse(models.Model):
             elif r in ("n", "non", "no", "false", "0"):
                 return False
         elif r=="d":
-            # On assume l'ordre français pour les dates:
-            d,m,y = tuple(int(i) for i in re.split("[/-. ]+", self.reponse.strip()))
-            return date(y,m,d)
+            return str2date(self.reponse.strip())
+
+    def get_html(self):
+        return formfield2html(
+            typ=self.question.reponse_type,
+            name="rep_old_%d" % self.repid,
+            value=self.get_value(),
+            choix=self.question.contenu_liste.split("\n"),
+            disabled=True
+        )
 
 class Requete(models.Model):
     reqid = models.AutoField(primary_key=True)
@@ -136,7 +183,7 @@ class Requete(models.Model):
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
 
     def get_desc_vector(self):
-        from juridico.methodes import txt2text2vec
+        from juridico.methodes import text2vec
         if self.description_vec == None:
             self.description_vec = text2vec(self.description_cas)
         return self.description_vec
@@ -189,9 +236,9 @@ class Organisation(Ressource):
             extra_class=" organisation"
         )
 
-    def distance2pt(self, lat, long):
+    def coords2dist(self, lat, long):
         "En km."
-        if self.latitude == None or org.longitude == None:
+        if self.latitude == None or long == None:
             return None
         else:
             return vincenty((self.latitude,self.longitude),(lat,long)).km

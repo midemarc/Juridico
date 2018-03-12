@@ -1,0 +1,46 @@
+<!doctype html>
+{% load static %}
+<html>
+  <head>
+    <title>Juridico – Résultats</title>
+    <link rel="stylesheet" href="{% static "resultats.css" %}">
+  </head>
+  <body>
+    <header>
+      <h1>
+        <img src="{% static "juridico.png" %}" style="height:4em">
+        Juridico
+      </h1>
+    </header>
+    <h2>Résultats</h2>
+    <div class="contenu">
+      {% if directions.count > 0 %}
+      <table class="directions">
+        {% for direction in directions %}
+        <tr><td>{{ direction.description }}</tr></td>
+        {% endfor %}
+      </table>
+      {% endif %}
+      <div class="ressources">
+        <div class="organisations">
+          {% for org in organisations %}
+          <h2>{{org.nom}}</h2>
+          <div>
+            {{ org.description }}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="documentation">
+          {% for doc in documentation %}
+            <a href="{{doc.url}}" target="_blank">{{doc.nom}}</a>
+            {% if doc.description is not None %}
+              <div class="doc_desc">
+                {{doc.description}}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

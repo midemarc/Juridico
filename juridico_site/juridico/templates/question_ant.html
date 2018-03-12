@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Juridico</title>
+        <link rel="stylesheet" href="{% static "resultats.css" %}">
+        <link rel="stylesheet" href="{% static "pikaday.css" %}">
+    </head>
+    <body>
+        <h1>
+            <img src="{% static "juridico.png" %}" alt="Logo Juridico" style="height: 2cm; margin-right: -0.5cm">
+            uridico
+        </h1>
+        <div class="question-list">
+          <div class="question{{ q0class }}">
+            <form action="/juridico/antique/questions" method="post">
+                <fieldset>
+                    <legend>Entrez une description de votre problème juridique&nbsp;:</legend>
+                    {% csrf_token %}
+                    <input type="hidden" name="cid" value="{{ client.cid }}">
+                    <input type="hidden" name="qnum" value="0">
+                    <textarea name="description_cas" rows="8" cols="80"{{ q0actif }}>{% if qnum > 0 %}{{requete.description_cas}}{% endif%}</textarea>
+                    <div>
+                      <input type="submit" name="Soumettre"{{ q0actif }}>
+                    </div>
+                </fieldset>
+            </form>
+          </div>
+          {% for r in reponses %}
+          <div class="qdone">
+            <form>
+            <fieldset>
+              <legend>{{r.question.description}}</legend>
+              {{r.get_html|safe}}
+              <div>
+                <input type="submit" name="Soumettre" disabled>
+              </div>
+            </fieldset>
+            </form>
+          </div>
+          {% endfor %}
+          {% if qnum > 0 %}
+          <div class="qactive">
+            <form action="/juridico/antique/questions" method="post">
+              {% csrf_token %}
+            <fieldset>
+              <legend>{{qactive.description}}</legend>
+              {{qactive.get_html|safe}}
+              <input type="hidden" name="qnum" value="{{ qnum }}">
+              <input type="hidden" name="cid" value="{{ client.cid }}">
+              <input type="hidden" name="reqid" value="{{ requete.reqid }}">
+              <div>
+                <input type="submit" name="Soumettre">
+              </div>
+            </fieldset>
+            </form>
+
+          </div>
+          {% endif %}
+      </div>
+
+      <script src="{% static "pikaday.js" %}"></script>
+
+    <script>
+
+    var picker = new Pikaday(
+    {
+        field: document.getElementById('datepicker'),
+        format: 'YYYY-MM-DD'
+    });
+
+    </script>
+    </body>
+</html>
