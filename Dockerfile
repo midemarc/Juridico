@@ -5,6 +5,7 @@ RUN echo "http://dl-8.alpinelinux.org/alpine/edge/community" >> /etc/apk/reposit
 RUN apk add --update-cache --no-cache gfortran build-base freetype-dev openblas-dev
 
 RUN mkdir /backend
+RUN mkdir /backend/juridico_site/
 WORKDIR /backend/juridico_site/
 #COPY requirements.txt /backend/
 RUN pip install --upgrade pip
