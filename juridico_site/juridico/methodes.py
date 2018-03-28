@@ -374,7 +374,7 @@ def question18(requete,reponse):
 
             add_direction(requete, 12)
 
-            date_limite_reponse = date_reception + timedelta(months=1)
+            date_limite_reponse = date_reception + relativedelta(months=1)
             njours = (date_limite_reponse-date.today()).days
 
             stocker_valeur(requete, "q18_date_limite_reponse", formatter_date(date_limite_reponse))
@@ -392,7 +392,7 @@ def question18(requete,reponse):
 
             add_direction(requete, 14)
 
-            date_limite_reponse = date_reception + timedelta(months=1)
+            date_limite_reponse = date_reception + relativedelta(months=1)
             njours = (date_limite_reponse-date.today()).days
 
             stocker_valeur(requete, "q18_date_limite_reponse", formatter_date(date_limite_reponse))
