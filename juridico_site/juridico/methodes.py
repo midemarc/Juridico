@@ -13,6 +13,7 @@ import pickle
 import re
 from geopy.distance import vincenty
 from django.db.models import Q
+from datetime import datetime
 
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
@@ -23,13 +24,13 @@ cp_codes, cp_pts = tuple(zip(*pickle.load(open(BASE_DIR+"/codes_postaux.pickle",
 cp_dict = dict(zip(cp_codes,cp_pts))
 
 from geoip2.database import Reader as georeader_mk
+from geoip2.errors import AddressNotFoundError
 georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
 
 def str2date(s):
-    d,m,y = tuple(int(i) for i in re.split(r'[/\-. ]+', s.reponse.strip()))
-    return date(y,m,d)
+    return datetime.strptime(s, "%d/%M/%Y").date()
 
 def date2str(d):
     return d.strftime("%d/%M/%Y")
@@ -50,7 +51,7 @@ def switch_geo(pt):
     "Bizzarement, mes coordonnées sont à l'envers (longitude,latitude). Ça les remet à l'endroit."
     return (pt[1], pt[0])
 
-def plus_proche_org(lat, long, conditions=None, topn=10, max_km=100):
+def plus_proche_org(lat, long, conditions=None, max_km=100):
     """Retourne les topn plus proches organisations.
     conditions: sous la forme dict où la clé est un nom de TagType et la valeur
     est un nom de tag. Si ce n'est pas None, alors ne cherche que parmis les
@@ -61,15 +62,16 @@ def plus_proche_org(lat, long, conditions=None, topn=10, max_km=100):
         pool = Organisation.objects.all()
     else:
         pool = Organisation.objects
-        for k, v in conditions:
+        for k, v in conditions.items():
             pool = pool.filter(tags__nom=v, tags__type_de_tag__nom=k)
 
-    r = [ (o.distance2pt(lat,long, o)) for o in pool ]
-    x = [ (None, o) for d,o in r if d==None ]
-    r = sorted([ (d, o) for d, o in r if d != None ])
-    r = [ (d, o) for d,o in r if d<=max_km ] + x
+    if pool.count() == 0: return []
 
-    return r[topn]
+    r = [ (o.coords2dist(lat,long), o.resid) for o in pool ]
+    x = [ (None, o) for d,o in r if d==None ]
+    r = list(sorted((d, o) for d, o in r if d != None), )
+    for d, o in  r + x:
+        yield (d, Organisation.objects.get(resid=o))
 
 def rd_gt(r1, r2):
     """Compare deux relativedeltas, détermine si le premier est plus grand que
@@ -100,7 +102,7 @@ def text2vec(description_cas):
 
     return d2v.infer_vector(t)
 
-def desc2domaine(description_cas, dom_logement=1, dom_famille=2):
+def desc2domaine(description_cas, dom_logement=1, dom_famille=9):
     """Classifieur: détermine si la description appartient au droit de la
     famille ou au droit du logement.
     TODO: remplacer par une fonction qui utilise les doc2vec (je fais pas trop
@@ -129,17 +131,19 @@ def get_top_educaloi(v, topn=10):
     """Renvoie les pages educaloi les plus similaires au vecteur soumis"""
 
     is_el = re.compile("^EL_")
-    idx_educaloi = np.nonzero(np.fromiter((is_tag.match(i) !=None for i in d2v.docvecs.index2entity), dtype=bool))[0]
-    distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")
-    return list(sorted(zip(distances, (Documentation.objects.filter(artid_educaloi=int(i[3:])) for i in idx_educaloi))))[:topn]
+    idx_educaloi = np.nonzero(np.fromiter((is_el.match(i) !=None for i in d2v.docvecs.index2entity), dtype=bool))[0]
+    distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")[0]
+    return list(sorted(zip(distances, (Documentation.objects.get(artid_educaloi=int(d2v.docvecs.index2entity[i][3:])) for i in idx_educaloi))))[:topn]
 
 def add_ressource(requete, ressource, poid=1.0, typ="", distance=None):
     q, _ = RessourceDeRequete.objects.update_or_create(
         requete=requete,
         resid=ressource.resid,
-        defaults = {"poid": poid},
-        type_classe = typ,
-        distance = distance
+        defaults = {
+            "poid": poid,
+            "type_classe": typ,
+            "distance": distance
+        }
     )
     q.save()
 
@@ -157,12 +161,20 @@ def add_orgs(requete, conditions, topn=10, poid=1.0):
     long = requete.client.longitude
 
     if lat == None or long == None:
-        loc = georeader.city(requete.ip).location
-        lat = loc.latitude
-        long = loc.longitude
+        if requete.client.code_postal != None:
+            if requete.client.code_postal in cp_codes:
+                long, lat = cp_dict[requete.client.code_postal]
 
-    for d, o in plus_proche_org(lat, long, conditions, topn=topn, poid=poid):
-        add_ressource(requete, o, poid=poid, distance=d)
+        if long == None or lat == None:
+            try:
+                loc = georeader.city(requete.ip).location
+                lat = loc.latitude
+                long = loc.longitude
+            except AddressNotFoundError:
+                lat, long = (45.513889, -73.560278)
+
+    for d, o in tuple(plus_proche_org(lat, long, conditions))[:topn]:
+        add_ressource(requete, o, poid=poid, distance=d, typ="Organisation")
 
 def add_client(requete, client, poid=1.0):
     d = Organisation.objects.get(client=client)
@@ -187,15 +199,16 @@ def stocker_valeur(requete, nom, val):
     )
     v.save()
 
-def get_valeur(requete, nom):
-    return Variable.objects.get(nom=nom).valeur
+def get_valeur(requete, nom, default=None):
+    v = Variable.objects.get(nom=nom, requete=requete)
+    return v.valeur if v != None else default
 
 #################
 # Les Questions #
 #################
 
 def question1(requete, reponse):
-    if reponse.reponse.lower() == "oui":
+    if reponse.reponse.strip().lower() == "oui":
         return 2
     else:
         return -1
@@ -322,7 +335,7 @@ def question6(requete,reponse):
         (not rd_gt(d2mois,dmois_reception_fin_bail) or \
         rd_gt(d1mois, dmois_reception_fin_bail)):
 
-        add_direction(10)
+        add_direction(requete,10)
 
     return -1
 
@@ -331,12 +344,12 @@ def question7(requete, reponse):
     date_modifs = str2date(reponse.reponse)
     date_reception = str2date(get_valeur(requete, "date_reception"))
 
-    dmois_reception_modifs = relativedelta(fin_bail, date_modifs)
+    dmois_reception_modifs = relativedelta(date_modifs, date_reception)
     d1mois = relativedelta(months=1)
     d2mois = relativedelta(months=2)
 
-    if rd_gt(d1mois,dmois_reception_fin_bail) and \
-        not rd_gt(d2mois, dmois_reception_fin_bail): #équivaut à ≥ 3 mois & < 6 mois
+    if rd_gt(d1mois,dmois_reception_modifs) and \
+        not rd_gt(d2mois, dmois_reception_modifs): #équivaut à ≥ 3 mois & < 6 mois
 
         add_direction(8)
 
@@ -387,7 +400,7 @@ def question18(requete,reponse):
 
             add_direction(requete, 14)
 
-            date_limite_reponse = date_reception + timedelta(months=1)
+            date_limite_reponse = date_reception + relativedelta(months=1)
             njours = (date_limite_reponse-date.today()).days
 
             stocker_valeur(requete, "q18_date_limite_reponse", formatter_date(date_limite_reponse))
@@ -515,17 +528,18 @@ def question17(requete,reponse):
     stocker_valeur(requete,"admissible_aide_juridique", reponse.reponse)
 
     F1 = get_valeur(requete, "demande_en_divorce")
+    F2 = get_valeur(requete,"enfants_mineurs")
     F8 = get_valeur(requete, "autorepresentation")
     F5 = str2date(get_valeur(requete,"date_reception"))
     F7 = str2date(get_valeur(requete,"date_avis_presentation"))
     F9 = reponse.reponse.strip().lower()
 
     if F8 == "oui":
-        if F1 == "non":
+        if F1.lower().strip() == "non":
             stocker_valeur(requete, "q17_date_cour", formatter_date(F7))
             add_direction(requete, 23)
         else:
             add_direction(requete, 22)
-    if F2 == "oui":
+    if F2.lower().strip() == "oui":
         add_direction(requete, 24)
     return -1
