@@ -30,13 +30,20 @@ def formfield2html(typ, name, value=None, choix=[], disabled=False):
         r = f'<select name="{name}"{dis}>{opt}</select>'
     elif typ == "d":
         did =  ' id="datepicker"' if not disabled else ""
-        r = f'<input type="text" name="{name}"{did}>'
+        val = ' value="%s"' % value.strftime("%a %b %d %Y") if isinstance(value, date) else ""
+        # r = f'<input type="text"  class="ui calendar""{val}{did}>'
+        r = f"""<div class="ui calendar"{did}>
+    <div class="ui input left icon">
+      <i class="calendar icon"></i>
+      <input type="text" placeholder="Date" name="{name}" {val}{did}>
+  </div>
+</div>"""
 
     elif typ == "l":
         val = value if value else choix[0]
         opt = ""
         for c in choix:
-            sel = " selected" if c == val else ""
+            sel = " selected" if c.strip().lower() == val.strip().lower() else ""
             opt+= f'\n<option value="{c}"{sel}>{c}</option>'
         r = f'<select name="{name}"{dis}>{opt}</select>'
     return r
@@ -161,6 +168,7 @@ class Reponse(models.Model):
             elif r in ("n", "non", "no", "false", "0"):
                 return False
         elif r=="d":
+            from juridico.methodes import str2date
             return str2date(self.reponse.strip())
 
     def get_html(self):
@@ -312,11 +320,12 @@ class Direction(Ressource):
             from juridico.methodes import get_valeur
             vs = self.variables.split()
             d = dict(
-                (v, get_valeur(requete, v)) for v in vs
+                (v, get_valeur(requete, v, "")) for v in vs
+                if "{%s}" %v in self.description
             )
-            desc = self.description.format(*d)
+            desc = self.description.format(**d)
         else:
-            desc=self.description
+            desc = self.description
         return desc
 
     def to_resultats(self):
@@ -338,9 +347,21 @@ class RessourceDeRequete(models.Model):
     rrid = models.AutoField(primary_key=True)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
     resid = models.IntegerField(default=-1)
-    poid = models.FloatField(default=0.)
+    poids = models.FloatField(default=0.)
     distance = models.FloatField(null=True, blank=True)
     type_classe = models.CharField(max_length=32, default="", blank=True)
 
     def get_ressource(self):
-        return Ressource.objects.get(resid=self.resid)
+        if self.type_classe == "Documentation":
+            return Documentation.objects.get(resid=self.resid)
+        elif self.type_classe == "Organisation":
+            return Organisation.objects.get(resid=self.resid)
+        elif self.type_classe == "Direction":
+            return Direction.objects.get(resid=self.resid)
+
+    def __str__(self):
+        reqid = self.requete.reqid
+        res = self.get_ressource()
+        desc=res.description if res != None else ""
+        typ =  self.type_classe
+        return f"[{reqid}] {typ}: {desc}"

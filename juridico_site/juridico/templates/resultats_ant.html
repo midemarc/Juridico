@@ -1,46 +1,87 @@
-<!doctype html>
-{% load static %}
+<!doctype html> {% load static %}
 <html>
-  <head>
-    <title>Juridico – Résultats</title>
-    <link rel="stylesheet" href="{% static "resultats.css" %}">
-  </head>
-  <body>
-    <header>
-      <h1>
-        <img src="{% static "juridico.png" %}" style="height:4em">
-        Juridico
+
+<head>
+  <title>Juridico – Résultats</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css">
+  <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.4/semantic.min.css" rel="stylesheet" type="text/css" />
+<link href="https://cdn.rawgit.com/mdehoog/Semantic-UI-Calendar/76959c6f7d33a527b49be76789e984a0a407350b/dist/calendar.min.css" rel="stylesheet" type="text/css" />
+<script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.4/semantic.min.js"></script>
+<script src="https://cdn.rawgit.com/mdehoog/Semantic-UI-Calendar/76959c6f7d33a527b49be76789e984a0a407350b/dist/calendar.min.js"></script>
+
+</head>
+
+<body>
+  <app-root _nghost-c0="" ng-version="5.2.7">
+    <app-interface _ngcontent-c0="" _nghost-c1="">
+  <header style="text-align: center">
+    <h1>
+          <img src="{% static "juridico_mot.png" %}" alt="Logo Juridico" style="height:2in; margin: 0.5cm auto 0.5cm auto">
       </h1>
-    </header>
-    <h2>Résultats</h2>
-    <div class="contenu">
-      {% if directions.count > 0 %}
-      <table class="directions">
-        {% for direction in directions %}
-        <tr><td>{{ direction.description }}</tr></td>
-        {% endfor %}
-      </table>
-      {% endif %}
-      <div class="ressources">
-        <div class="organisations">
-          {% for org in organisations %}
-          <h2>{{org.nom}}</h2>
-          <div>
-            {{ org.description }}
-          </div>
-          {% endfor %}
+      <h1>Résultats</h1>
+  </header>
+
+{% if directions|length > 0 %}
+      <div class="question-list" style="margin: 1cm auto 3cm auto">
+        <div style="text-align: center">
+<h4 style="margin-bottom: 0.5cm">Quelques informations importantes</h4>
         </div>
-        <div class="documentation">
-          {% for doc in documentation %}
-            <a href="{{doc.url}}" target="_blank">{{doc.nom}}</a>
-            {% if doc.description is not None %}
-              <div class="doc_desc">
-                {{doc.description}}
-              </div>
-            {% endif %}
-          {% endfor %}
+{% for desc in directions %}
+        <app-question _ngcontent-c1="" _nghost-c2="" ng-reflect-idx="1">
+          <div _ngcontent-c2="" class="ui raised container segment">
+    <div>{{ desc|safe }}</div>
+</div>
+</app-question>
+{% endfor %}
+  </div>
+{% endif %}
+
+{% if organisations|length > 0 %}
+      <div class="question-list" style="margin: 1cm auto 3cm auto">
+        <div style="text-align: center">
+<h4 style="margin-bottom: 0.5cm">Des endroits où trouver de l'aide</h4>
         </div>
-      </div>
+
+    {% for org in organisations %}
+      <app-question _ngcontent-c1="" _nghost-c2="" ng-reflect-idx="1">
+        <div _ngcontent-c2="" class="ui raised container segment">
+    <h4>{{org.nom}}</h4>
+    <div>
+      {{ org.description }}
     </div>
-  </body>
+    </div>
+    </app-question>
+    {% endfor %}
+
+  </div>
+{% endif %}
+
+
+{% if documentation|length > 0 %}
+      <div class="question-list" style="margin: 1cm auto 3cm auto">
+        <div style="text-align: center">
+<h4 style="margin-bottom: 0.5cm">Documentation</h4>
+        </div>
+    {% for doc in documentation %}
+      <app-question _ngcontent-c1="" _nghost-c2="" ng-reflect-idx="1">
+        <div _ngcontent-c2="" class="ui raised container segment">
+
+    {% if doc.description is not None %}
+    <a href="{{doc.url}}" target="_blank">{{doc.nom}}</a>
+    <div class="doc_desc">
+      {{doc.description}}
+  </div>
+</div>
+</app-question>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  </div>
+</app-root>
+</body>
+
 </html>

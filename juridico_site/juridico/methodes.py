@@ -30,10 +30,10 @@ georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
 
 def str2date(s):
-    return datetime.strptime(s, "%a %b %d %Y").date()
+    return datetime.strptime(s, "%d/%M/%Y").date()
 
 def date2str(d):
-    return d.strftime("%a %b %d %Y")
+    return d.strftime("%d/%M/%Y")
 
 def formatter_date(d):
     mois = mois_fr[d.month-1]
@@ -51,7 +51,7 @@ def switch_geo(pt):
     "Bizzarement, mes coordonnées sont à l'envers (longitude,latitude). Ça les remet à l'endroit."
     return (pt[1], pt[0])
 
-def plus_proche_org(lat, long, conditions=None, topn=10, max_km=100):
+def plus_proche_org(lat, long, conditions=None, max_km=100):
     """Retourne les topn plus proches organisations.
     conditions: sous la forme dict où la clé est un nom de TagType et la valeur
     est un nom de tag. Si ce n'est pas None, alors ne cherche que parmis les
@@ -62,16 +62,16 @@ def plus_proche_org(lat, long, conditions=None, topn=10, max_km=100):
         pool = Organisation.objects.all()
     else:
         pool = Organisation.objects
-        for k, v in conditions:
+        for k, v in conditions.items():
             pool = pool.filter(tags__nom=v, tags__type_de_tag__nom=k)
 
     if pool.count() == 0: return []
 
-    r = [ (o.coords2dist(lat,long), o) for o in pool ]
+    r = [ (o.coords2dist(lat,long), o.resid) for o in pool ]
     x = [ (None, o) for d,o in r if d==None ]
-    r = list(sorted([ (d, o) for d, o in r if d != None ]))
-    r = [ (d, o) for d,o in r if d<=max_km ] + x
-    for t in r: yield t
+    r = list(sorted((d, o) for d, o in r if d != None), )
+    for d, o in  r + x:
+        yield (d, Organisation.objects.get(resid=o))
 
 def rd_gt(r1, r2):
     """Compare deux relativedeltas, détermine si le premier est plus grand que
@@ -132,16 +132,18 @@ def get_top_educaloi(v, topn=10):
 
     is_el = re.compile("^EL_")
     idx_educaloi = np.nonzero(np.fromiter((is_el.match(i) !=None for i in d2v.docvecs.index2entity), dtype=bool))[0]
-    distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")
+    distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")[0]
     return list(sorted(zip(distances, (Documentation.objects.get(artid_educaloi=int(d2v.docvecs.index2entity[i][3:])) for i in idx_educaloi))))[:topn]
 
 def add_ressource(requete, ressource, poid=1.0, typ="", distance=None):
     q, _ = RessourceDeRequete.objects.update_or_create(
         requete=requete,
         resid=ressource.resid,
-        defaults = {"poid": poid},
-        type_classe = typ,
-        distance = distance
+        defaults = {
+            "poid": poid,
+            "type_classe": typ,
+            "distance": distance
+        }
     )
     q.save()
 
@@ -171,8 +173,8 @@ def add_orgs(requete, conditions, topn=10, poid=1.0):
             except AddressNotFoundError:
                 lat, long = (45.513889, -73.560278)
 
-    for d, o in plus_proche_org(lat, long, conditions, topn=topn):
-        add_ressource(requete, o, poid=poid, distance=d)
+    for d, o in tuple(plus_proche_org(lat, long, conditions))[:topn]:
+        add_ressource(requete, o, poid=poid, distance=d, typ="Organisation")
 
 def add_client(requete, client, poid=1.0):
     d = Organisation.objects.get(client=client)
@@ -197,8 +199,9 @@ def stocker_valeur(requete, nom, val):
     )
     v.save()
 
-def get_valeur(requete, nom):
-    return Variable.objects.get(nom=nom, requete=requete).valeur
+def get_valeur(requete, nom, default=None):
+    v = Variable.objects.get(nom=nom, requete=requete)
+    return v.valeur if v != None else default
 
 #################
 # Les Questions #
@@ -332,7 +335,7 @@ def question6(requete,reponse):
         (not rd_gt(d2mois,dmois_reception_fin_bail) or \
         rd_gt(d1mois, dmois_reception_fin_bail)):
 
-        add_direction(10)
+        add_direction(requete,10)
 
     return -1
 
@@ -397,7 +400,7 @@ def question18(requete,reponse):
 
             add_direction(requete, 14)
 
-            date_limite_reponse = date_reception + timedelta(months=1)
+            date_limite_reponse = date_reception + relativedelta(months=1)
             njours = (date_limite_reponse-date.today()).days
 
             stocker_valeur(requete, "q18_date_limite_reponse", formatter_date(date_limite_reponse))
@@ -525,17 +528,18 @@ def question17(requete,reponse):
     stocker_valeur(requete,"admissible_aide_juridique", reponse.reponse)
 
     F1 = get_valeur(requete, "demande_en_divorce")
+    F2 = get_valeur(requete,"enfants_mineurs")
     F8 = get_valeur(requete, "autorepresentation")
     F5 = str2date(get_valeur(requete,"date_reception"))
     F7 = str2date(get_valeur(requete,"date_avis_presentation"))
     F9 = reponse.reponse.strip().lower()
 
     if F8 == "oui":
-        if F1 == "non":
+        if F1.lower().strip() == "non":
             stocker_valeur(requete, "q17_date_cour", formatter_date(F7))
             add_direction(requete, 23)
         else:
             add_direction(requete, 22)
-    if F2 == "oui":
+    if F2.lower().strip() == "oui":
         add_direction(requete, 24)
     return -1

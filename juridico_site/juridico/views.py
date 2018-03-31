@@ -255,12 +255,12 @@ def api_resultats(request):
         from methodes import get_top_educaloi, add_orgs, add_documentation
 
         if n_orgs < compte_desire:
-            add_orgs(req, conditions=None, topn=compte_desire-n_orgs)
+            add_orgs(req, conditions=None, topn=compte_desire-n_orgs, poid=0.3)
 
         if n_docs < compte_desire:
             v = req.get_desc_vector()
             for d, o in get_top_educaloi(v,topn=compte_desire-n_docs):
-                add_documentation(req, o.resid)
+                add_documentation(req, o.resid, poid=0.3)
 
 
         # Les convertir en json pour les envoyer à angular
@@ -271,7 +271,7 @@ def api_resultats(request):
                 for rr.resid in RessourceDeRequete.objects.filter(
                     type_classe="Documentation",
                     requete=req
-                    )
+                    ).order_by("poid").desc()
             ],
             many=True
         ).data
@@ -282,7 +282,7 @@ def api_resultats(request):
                 for rr in RessourceDeRequete.objects.filter(
                     type_classe="Organisation",
                     requete=req
-                    )
+                    ).order_by("poid").desc()
             ],
             many=True
         ).data
@@ -418,9 +418,10 @@ def antique_resultats(request, requeteid=None):
                 requete=req
                 )]
 
-    fvars["directions"] = [RessourceDeRequete.objects.filter(
-            type_classe="Direction",
-            requete=req
+    fvars["directions"] = [ Direction.objects.get(resid=rr.resid).formatted_description(req)
+            for rr in RessourceDeRequete.objects.filter(
+                type_classe="Direction",
+                requete=req
             )]
 
     return render(request,"resultats_ant.html", fvars)
