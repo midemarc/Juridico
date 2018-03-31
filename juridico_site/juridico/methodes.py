@@ -6,6 +6,7 @@ from juridico_site.settings import BASE_DIR
 from collections import Counter
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
+from .models import *
 #import locale
 from .models import Variable, RessourceDeRequete, Direction, Documentation, Organisation
 from gensim.models import Doc2Vec
@@ -29,8 +30,16 @@ georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
 
+<<<<<<< HEAD
 def str2date(s):
     return datetime.strptime(s, "%d/%M/%Y").date()
+=======
+
+def str2date(datetime_iso: str) -> datetime:
+    date_iso, _ = re.split(r'T', datetime_iso)
+    y, m, d = tuple(int(i) for i in re.split(r'[/\-. ]+', date_iso))
+    return date(y, m, d)
+>>>>>>> 0f01d15f54f08262877bac0adf6155cb24fe6728
 
 def date2str(d):
     return d.strftime("%d/%M/%Y")
@@ -234,7 +243,8 @@ def question2(requete, reponse):
     else:
         return -1 # Pour les cas non-traités...
 
-def question3(requete, reponse):
+
+def question3(requete: Requete, reponse: Reponse):
     # À quelle date avez-vous reçu ce document?
     stocker_valeur(requete, "date_reception", reponse.reponse)
 
@@ -284,12 +294,13 @@ def question5(requete, reponse):
         add_orgs(requete, {"Spécialité":"Droit du logement", "Type de ressource": "Avocat·e"}, topn=5)
         return -1
 
+
 def question6(requete,reponse):
     # Quelle est la date de fin de bail?
     stocker_valeur(requete, "date_fin_de_bail", reponse.reponse)
     duree_bail = get_valeur(requete, "durée_bail")
-    fin_bail = str2date(reponse.reponse)
-    date_reception = str2date(get_valeur(requete, "date_reception"))
+    fin_bail: datetime = str2date(reponse.reponse)
+    date_reception: datetime = str2date(get_valeur(requete, "date_reception"))
 
     dmois_reception_fin_bail = relativedelta(fin_bail, date_reception)
     d6mois = relativedelta(months=6)
@@ -303,7 +314,7 @@ def question6(requete,reponse):
 
         add_direction(requete, 8)
 
-        date_limite_reponse = date_reception + timedelta(months=1)
+        date_limite_reponse = date_reception + relativedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
         stocker_valeur(requete, "q6_date_limite_reponse", formatter_date(date_limite_reponse))
@@ -382,7 +393,7 @@ def question18(requete,reponse):
 
             add_direction(requete, 12)
 
-            date_limite_reponse = date_reception + timedelta(months=1)
+            date_limite_reponse = date_reception + relativedelta(months=1)
             njours = (date_limite_reponse-date.today()).days
 
             stocker_valeur(requete, "q18_date_limite_reponse", formatter_date(date_limite_reponse))

@@ -212,6 +212,14 @@ def api_next_question(request):
     try:
         request_id: int = int(request.GET["reqid"])
         reponse_id: int = int(request.GET['repid'])
+
+        if reponse_id is -1:
+            # Convention pour la requete
+            return JsonResponse({
+                # Temporary cheat, always first question
+                'question_id': 1
+            })
+
         id_only: bool = bool(int(request.GET.get('id_only', '0')))
         o_reponse = Reponse.objects.get(repid=reponse_id)
         o_request = Requete.objects.get(reqid=request_id)
@@ -220,6 +228,11 @@ def api_next_question(request):
 
         if not next_question_id:
             return JsonResponse({})
+
+        if next_question_id == -1:
+            return JsonResponse({
+                'question_id': next_question_id
+            })
 
         o_question = Question.objects.get(qid=next_question_id)
 
