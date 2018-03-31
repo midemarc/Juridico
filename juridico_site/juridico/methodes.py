@@ -30,16 +30,8 @@ georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
 
-<<<<<<< HEAD
 def str2date(s):
     return datetime.strptime(s, "%d/%M/%Y").date()
-=======
-
-def str2date(datetime_iso: str) -> datetime:
-    date_iso, _ = re.split(r'T', datetime_iso)
-    y, m, d = tuple(int(i) for i in re.split(r'[/\-. ]+', date_iso))
-    return date(y, m, d)
->>>>>>> 0f01d15f54f08262877bac0adf6155cb24fe6728
 
 def date2str(d):
     return d.strftime("%d/%M/%Y")
