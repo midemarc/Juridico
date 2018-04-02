@@ -30,8 +30,19 @@ georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
 
+# Types de formattages de date
+# datet2 correspond au type de l'interface angular/ts, datet2 au type de l'interface django
+datet1 = re.compile(r"(?P<an>[0-9]{4})-(?P<mois>[0-9]{2})-(?P<jour>[0-9]{2})T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z")
+datet2 = re.compile(r"(?P<jour>[0-9]{2})[-/](?P<mois>[0-9]{2})[-/](?P<an>[0-9]{4})")
+
 def str2date(s):
-    return datetime.strptime(s, "%d/%M/%Y").date()
+    m = datet1.match(s)
+    if s == None: m = datet2.match(s)
+    return date(
+        int(m.group("an")),
+        int(m.group("mois")),
+        int(m.group("jour"))
+    )
 
 def date2str(d):
     return d.strftime("%d/%M/%Y")
@@ -136,12 +147,12 @@ def get_top_educaloi(v, topn=10):
     distances = cdist([v], d2v.docvecs.vectors_docs[idx_educaloi], metric="cosine")[0]
     return list(sorted(zip(distances, (Documentation.objects.get(artid_educaloi=int(d2v.docvecs.index2entity[i][3:])) for i in idx_educaloi))))[:topn]
 
-def add_ressource(requete, ressource, poid=1.0, typ="", distance=None):
+def add_ressource(requete, ressource, poids=1.0, typ="", distance=None):
     q, _ = RessourceDeRequete.objects.update_or_create(
         requete=requete,
         resid=ressource.resid,
         defaults = {
-            "poid": poid,
+            "poids": poids,
             "type_classe": typ,
             "distance": distance
         }
@@ -157,7 +168,7 @@ def add_direction(requete,resid):
 def add_organisation(requete,resid, distance=None):
     add_ressource(requete, Organisation.objects.get(resid=resid), typ="Organisation", distance=distance)
 
-def add_orgs(requete, conditions, topn=10, poid=1.0):
+def add_orgs(requete, conditions, topn=10, poids=1.0):
     lat = requete.client.latitude
     long = requete.client.longitude
 
@@ -175,9 +186,9 @@ def add_orgs(requete, conditions, topn=10, poid=1.0):
                 lat, long = (45.513889, -73.560278)
 
     for d, o in tuple(plus_proche_org(lat, long, conditions))[:topn]:
-        add_ressource(requete, o, poid=poid, distance=d, typ="Organisation")
+        add_ressource(requete, o, poids=poids, distance=d, typ="Organisation")
 
-def add_client(requete, client, poid=1.0):
+def add_client(requete, client, poids=1.0):
     d = Organisation.objects.get(client=client)
     if d == None:
         d = Organisation.objects.create(
@@ -188,7 +199,7 @@ def add_client(requete, client, poid=1.0):
     r2r = RessourceDeRequete.objects.create(
         requete = requete,
         resid = d.resid,
-        poid = poid
+        poids = poids
     )
     r2r.save()
 
@@ -326,7 +337,7 @@ def question6(requete,reponse):
 
         add_direction(requete, 8)
 
-        date_limite_reponse = date_reception + timedelta(months=1)
+        date_limite_reponse = date_reception + relativedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
         stocker_valeur(requete, "q6_date_limite_reponse", formatter_date(date_limite_reponse))
@@ -356,7 +367,7 @@ def question7(requete, reponse):
 
         add_direction(8)
 
-        date_limite_reponse = date_reception + timedelta(months=1)
+        date_limite_reponse = date_reception + relativedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
         stocker_valeur(requete, "q6_date_limite_reponse", formatter_date(date_limite_reponse))
@@ -430,7 +441,7 @@ def question19(requete,reponse):
 
         add_direction(requete, 12)
 
-        date_limite_reponse = date_reception + timedelta(months=1)
+        date_limite_reponse = date_reception + relativedelta(months=1)
         njours = (date_limite_reponse-date.today()).days
 
         stocker_valeur(requete, "q19_date_limite_reponse", formatter_date(date_limite_reponse))
