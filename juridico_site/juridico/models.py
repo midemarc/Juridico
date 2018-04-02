@@ -118,7 +118,8 @@ class Client(models.Model):
 
     def get_code_postal(self):
         "Retourne le code postal, format X0X0X0."
-        return re.sub("\s+", "", self.code_postal.upper())
+        if self.code_postal != None:
+            return re.sub("\s+", "", self.code_postal.upper())
 
 class Question(models.Model):
     qid = models.AutoField(primary_key=True)
@@ -276,7 +277,8 @@ class Organisation(Ressource):
 
     def get_code_postal(self):
         "Retourne le code postal, format X0X0X0."
-        return re.sub("\s+", "", self.code_postal.upper())
+        if self.code_postal != None:
+            return re.sub("\s+", "", self.code_postal.upper())
 
     def to_resultats(self):
         return item_html.format(

@@ -183,9 +183,9 @@ def add_orgs(requete, conditions, topn=10, poids=1.0):
     long = requete.client.longitude
 
     if lat == None or long == None:
-        if requete.client.code_postal != None:
-            if requete.client.code_postal in cp_codes:
-                long, lat = cp_dict[requete.client.code_postal]
+        if requete.client.get_code_postal() != None:
+            if requete.client.get_code_postal() in cp_codes:
+                long, lat = cp_dict[requete.client.get_code_postal()]
 
         if long == None or lat == None:
             try:
