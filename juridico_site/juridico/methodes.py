@@ -28,7 +28,9 @@ from geoip2.database import Reader as georeader_mk
 from geoip2.errors import AddressNotFoundError
 georeader = georeader_mk(BASE_DIR+"/GeoLite2-City.mmdb")
 
+
 mois_fr = "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split()
+mois_en = "January February March April May June July August September October November December".split()
 
 # Types de formattages de date
 # datet2 correspond au type de l'interface angular/ts, datet2 au type de l'interface django
@@ -36,6 +38,7 @@ datet1 = re.compile(r"(?P<an>[0-9]{4})-(?P<mois>[0-9]{2})-(?P<jour>[0-9]{2})T[0-
 datet2 = re.compile(r"(?P<jour>[0-9]{2})[-/](?P<mois>[0-9]{2})[-/](?P<an>[0-9]{4})")
 
 def str2date(s):
+    "Convertit une date formattée dans une chaîne en date python"
     m = datet1.match(s)
     if s == None: m = datet2.match(s)
     return date(
@@ -45,10 +48,15 @@ def str2date(s):
     )
 
 def date2str(d):
+    "Convertit une date python vers une chaîne au format de date standard pour Juridico"
     return d.strftime("%d/%M/%Y")
 
-def formatter_date(d):
-    mois = mois_fr[d.month-1]
+def formatter_date(d, lang="fr"):
+    "Convertit une date python vers une chaîne contenant une date lisible en français."
+    if lang == "fr":
+        mois = mois_fr[d.month-1]
+    elif lang == "en":
+        mois = mois_en[d.month-1]
     return d.strftime("%-d {mois} %Y").format(mois=mois)
 
 def cp2geo(cp):
@@ -148,6 +156,8 @@ def get_top_educaloi(v, topn=10):
     return list(sorted(zip(distances, (Documentation.objects.get(artid_educaloi=int(d2v.docvecs.index2entity[i][3:])) for i in idx_educaloi))))[:topn]
 
 def add_ressource(requete, ressource, poids=1.0, typ="", distance=None):
+    "Ajoute une ressource à la liste des résultats"
+
     q, _ = RessourceDeRequete.objects.update_or_create(
         requete=requete,
         resid=ressource.resid,

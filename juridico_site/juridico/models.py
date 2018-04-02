@@ -2,6 +2,7 @@ from django.db import models
 from datetime import datetime, timedelta, date
 import re
 from geopy.distance import vincenty
+from django.core.validators import RegexValidator
 
 # Create your models here.
 
@@ -9,6 +10,7 @@ item_html = """<div class="item{extra_class}">
 <h4><a href="{url}">{titre}</a></h4>
 <div class="description"></div>
 </div>"""
+
 
 def formfield2html(typ, name, value=None, choix=[], disabled=False):
     dis = " disabled" if disabled else ""
@@ -51,7 +53,8 @@ def formfield2html(typ, name, value=None, choix=[], disabled=False):
 
 class Tag(models.Model):
     tid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=256)
+    nom = models.CharField(max_length=256, help_text="Nom du tag (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom du tag (anglais)", blank=True)
     type_de_tag = models.ForeignKey("TagType", blank=True, null=True, on_delete=models.SET_NULL)
 
     def __str__(self):
@@ -63,7 +66,8 @@ class Tag(models.Model):
 
 class TagType(models.Model):
     ttid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=256)
+    nom = models.CharField(max_length=256, help_text="Nom du type de tag (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom du type de tag (anglais)", blank=True)
     def __str__(self):
         return "(%d) %s" % (self.ttid,self.nom)
 
@@ -74,9 +78,24 @@ class Client(models.Model):
     date_modif = models.DateTimeField(auto_now=True)
     courriel = models.EmailField()
     tags = models.ManyToManyField("Tag", blank=True)
+    langue = models.CharField(
+        choices = (
+            ("fr", "français"),
+            ("en", "english")
+        )
+    ,max_length=2, blank=True) # Pour le moment, on n'a que deux langues...
+    #TODO: Possibilité d'en ajouter d'autres
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
-    code_postal = models.CharField(max_length=6, blank=True)
+    code_postal = models.CharField(
+        max_length=7,
+        blank=True,
+        help_text = "Sert à géolocaliser.",
+        validators = [RegexValidator(
+            regex = r"^[A-Z][0-9][A-Z] ?[0-9][A-Z][0-9]$",
+            message = "Format invalide pour un code postal. Le format est: X0X 0X0, où X est une lettre et 0 un chiffre."
+        )]
+    )
     types_de_droit = models.ManyToManyField(
         "Categorie",
         blank=True,
@@ -100,7 +119,8 @@ class Client(models.Model):
 class Question(models.Model):
     qid = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=128, unique=True)
-    question = models.TextField()
+    question = models.TextField(help_text="Question posée à l'usager·e (français).")
+    question_en = models.TextField(help_text="Question posée à l'usager·e (anglais).", blank=True)
     reponse_type = models.CharField(
         choices = (
             ("t", "textuel"),
@@ -135,7 +155,8 @@ class Categorie(models.Model):
     # Les catégories concernent le contenu, là où les Tags concernent des
     # attributs divers (spécialité, langue, etc.) utiles pour l'usager·e
     catid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=1024)
+    nom = models.CharField(max_length=1024, help_text="Nom de la catégorie (français)")
+    nom_en = models.CharField(max_length=1024, help_text="Nom de la catégorie (anglais)", blank=True)
     parent = models.ManyToManyField("Categorie")
 
     def __str__(self):
@@ -204,7 +225,8 @@ class Requete(models.Model):
 
 class Ressource(models.Model):
     resid = models.AutoField(primary_key=True, unique=True)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, help_text="Description de la ressource (français)")
+    description_en = models.TextField(blank=True, help_text="Description de la ressource (anglais)")
     tags = models.ManyToManyField("Tag", blank=True)
     commentaires = models.TextField(blank=True)
     type_classe = models.CharField(max_length=32, default="", blank=True)
@@ -213,12 +235,18 @@ class Ressource(models.Model):
         abstract = True
 
 class Organisation(Ressource):
-    nom = models.CharField(max_length=256)
-    url = models.CharField(max_length=1024, blank=True)
+    nom = models.CharField(max_length=256, help_text="Nom de l'organisme (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom de l'organisme (anglais)", blank=True)
+    url = models.CharField(max_length=1024, blank=True, help_text="URL de l'organisme (français)")
+    url_en = models.CharField(max_length=1024, blank=True, help_text="URL de l'organisme (anglais)")
     code_postal = models.CharField(
-        max_length=6,
+        max_length=7,
         blank=True,
-        help_text = "Sert à géolocaliser"
+        help_text = "Sert à géolocaliser.",
+        validators = [RegexValidator(
+            regex = r"^[A-Z][0-9][A-Z] ?[0-9][A-Z][0-9]$",
+            message = "Format invalide pour un code postal. Le format est: X0X 0X0, où X est une lettre et 0 un chiffre."
+        )]
     )
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
@@ -229,12 +257,22 @@ class Organisation(Ressource):
         blank=True,
         help_text = "Par exemple, pour un·e avocat·e ou notaire, son cabinet."
     )
+    appartenance_en = models.CharField(
+        max_length=1024,
+        blank=True,
+        help_text = "Par exemple, pour un·e avocat·e ou notaire, son cabinet."
+    )
     telephone = models.CharField(max_length=64, blank=True)
     telecopieur = models.CharField(max_length=64, blank=True)
     heures_ouverture = models.TextField(blank=True)
+    heures_ouverture_en = models.TextField(blank=True)
 
     def __str__(self):
         return f"({self.resid}) {self.nom}"
+
+    def get_cp(self):
+        "Retourne le code postal, format X0X0X0."
+        return re.sub("\s+", "", self.code_postal.upper())
 
     def to_resultats(self):
         return item_html.format(
@@ -252,10 +290,13 @@ class Organisation(Ressource):
             return vincenty((self.latitude,self.longitude),(lat,long)).km
 
 class Documentation(Ressource):
-    nom = models.CharField(max_length=256)
-    url = models.CharField(max_length=1024)
+    nom = models.CharField(max_length=256, help_text="Nom du document (français)")
+    url = models.CharField(max_length=102, help_text="URL du document (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom du document (anglais)", blank=True)
+    url_en = models.CharField(max_length=1024, help_text="URL du document (anglais)", blank=True)
     artid_educaloi = models.IntegerField(blank=True, null=True)
     categorie_educaloi = models.CharField(max_length=256, blank=True, null=True)
+    categorie_educaloi_en = models.CharField(max_length=256, blank=True, null=True)
     nom_source = models.ForeignKey("DocuSource", blank=True, null=True, on_delete=models.SET_NULL)
 
     def to_resultats(self):
@@ -284,15 +325,25 @@ class CategDocumentation(models.Model):
 
 class DocuSource(models.Model):
     dcid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=256)
-    url = models.CharField(max_length=1024, blank=True, null=True)
+    nom = models.CharField(max_length=256, help_text="Nom de la source (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom de la source (anglais)", blank=True)
+    url = models.CharField(max_length=1024, blank=True, null=True, help_text="Nom de la source (français)")
+    url_en = models.CharField(max_length=1024, blank=True, null=True, help_text="Nom de la source (anglais)")
 
     def __str__(self):
         return "(%d) %s" % (self.dcid, self.nom)
 
 class Camarade(Ressource):
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
-    code_postal = models.CharField(max_length=6, blank=True)
+    code_postal = models.CharField(
+        max_length=7,
+        blank=True,
+        help_text = "Sert à géolocaliser.",
+        validators = [RegexValidator(
+            regex = r"^[A-Z][0-9][A-Z] ?[0-9][A-Z][0-9]$",
+            message = "Format invalide pour un code postal. Le format est: X0X 0X0, où X est une lettre et 0 un chiffre."
+        )]
+    )
 
     def to_resultats(self):
         return item_html.format(
