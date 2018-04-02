@@ -116,6 +116,10 @@ class Client(models.Model):
     def __str__(self):
         return "(%d) %s" % (self.cid, self.pseudo)
 
+    def get_code_postal(self):
+        "Retourne le code postal, format X0X0X0."
+        return re.sub("\s+", "", self.code_postal.upper())
+
 class Question(models.Model):
     qid = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=128, unique=True)
@@ -270,7 +274,7 @@ class Organisation(Ressource):
     def __str__(self):
         return f"({self.resid}) {self.nom}"
 
-    def get_cp(self):
+    def get_code_postal(self):
         "Retourne le code postal, format X0X0X0."
         return re.sub("\s+", "", self.code_postal.upper())
 
@@ -335,15 +339,6 @@ class DocuSource(models.Model):
 
 class Camarade(Ressource):
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
-    code_postal = models.CharField(
-        max_length=7,
-        blank=True,
-        help_text = "Sert à géolocaliser.",
-        validators = [RegexValidator(
-            regex = r"^[A-Z][0-9][A-Z] ?[0-9][A-Z][0-9]$",
-            message = "Format invalide pour un code postal. Le format est: X0X 0X0, où X est une lettre et 0 un chiffre."
-        )]
-    )
 
     def to_resultats(self):
         return item_html.format(
