@@ -2,6 +2,7 @@ from django.db import models
 from datetime import datetime, timedelta, date
 import re
 from geopy.distance import vincenty
+from django.core.validators import RegexValidator
 
 # Create your models here.
 
@@ -11,9 +12,49 @@ item_html = """<div class="item{extra_class}">
 </div>"""
 
 
+def formfield2html(typ, name, value=None, choix=[], disabled=False):
+    dis = " disabled" if disabled else ""
+    if typ == "t":
+        val = value if value else ""
+        r = f'<textarea name="{name}" rows="8" cols="80"{dis}>{val}</textarea>'
+    elif typ == "e":
+        val = value if value else 0
+        r = f'<input type="number" name="{name}" value="{val}"{dis}>'
+    elif typ == "f":
+        val = value if value else 0
+        r = f'<input type="text" name="{name}" value="{val}"{dis}>'
+    elif typ == "b":
+        val = value if value else False
+        if val:
+            opt = '<option value="oui" selected>Oui</option><option value="non">Non</option>'
+        else:
+            opt = '<option value="oui">Oui</option><option value="non" selected>Non</option>'
+        r = f'<select name="{name}"{dis}>{opt}</select>'
+    elif typ == "d":
+        did =  ' id="datepicker"' if not disabled else ""
+        val = ' value="%s"' % value.strftime("%a %b %d %Y") if isinstance(value, date) else ""
+        # r = f'<input type="text"  class="ui calendar""{val}{did}>'
+        r = f"""<div class="ui calendar"{did}>
+    <div class="ui input left icon">
+      <i class="calendar icon"></i>
+      <input type="text" placeholder="Date" name="{name}" {val}{did}>
+  </div>
+</div>"""
+
+    elif typ == "l":
+        val = value if value else choix[0]
+        opt = ""
+        for c in choix:
+            sel = " selected" if c.strip().lower() == val.strip().lower() else ""
+            opt+= f'\n<option value="{c}"{sel}>{c}</option>'
+        r = f'<select name="{name}"{dis}>{opt}</select>'
+    return r
+
+
 class Tag(models.Model):
     tid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=256)
+    nom = models.CharField(max_length=256, help_text="Nom du tag (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom du tag (anglais)", blank=True)
     type_de_tag = models.ForeignKey("TagType", blank=True, null=True, on_delete=models.SET_NULL)
 
     def __str__(self):
@@ -25,7 +66,8 @@ class Tag(models.Model):
 
 class TagType(models.Model):
     ttid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=256)
+    nom = models.CharField(max_length=256, help_text="Nom du type de tag (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom du type de tag (anglais)", blank=True)
     def __str__(self):
         return "(%d) %s" % (self.ttid,self.nom)
 
@@ -36,9 +78,24 @@ class Client(models.Model):
     date_modif = models.DateTimeField(auto_now=True)
     courriel = models.EmailField()
     tags = models.ManyToManyField("Tag", blank=True)
+    langue = models.CharField(
+        choices = (
+            ("fr", "français"),
+            ("en", "english")
+        )
+    ,max_length=2, blank=True) # Pour le moment, on n'a que deux langues...
+    #TODO: Possibilité d'en ajouter d'autres
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
-    code_postal = models.CharField(max_length=6, blank=True)
+    code_postal = models.CharField(
+        max_length=7,
+        blank=True,
+        help_text = "Sert à géolocaliser.",
+        validators = [RegexValidator(
+            regex = r"^[A-Z][0-9][A-Z] ?[0-9][A-Z][0-9]$",
+            message = "Format invalide pour un code postal. Le format est: X0X 0X0, où X est une lettre et 0 un chiffre."
+        )]
+    )
     types_de_droit = models.ManyToManyField(
         "Categorie",
         blank=True,
@@ -59,10 +116,16 @@ class Client(models.Model):
     def __str__(self):
         return "(%d) %s" % (self.cid, self.pseudo)
 
+    def get_code_postal(self):
+        "Retourne le code postal, format X0X0X0."
+        if self.code_postal != None:
+            return re.sub("\s+", "", self.code_postal.upper())
+
 class Question(models.Model):
     qid = models.AutoField(primary_key=True)
     nom = models.CharField(max_length=128, unique=True)
-    question = models.TextField()
+    question = models.TextField(help_text="Question posée à l'usager·e (français).")
+    question_en = models.TextField(help_text="Question posée à l'usager·e (anglais).", blank=True)
     reponse_type = models.CharField(
         choices = (
             ("t", "textuel"),
@@ -84,11 +147,21 @@ class Question(models.Model):
     def __str__(self):
         return "(%d) %s" % (self.qid, self.nom)
 
+    def get_html(self):
+        return formfield2html(
+            typ=self.reponse_type,
+            name="reponse",
+            choix=self.contenu_liste.split("\n"),
+            disabled=False
+        )
+
+
 class Categorie(models.Model):
     # Les catégories concernent le contenu, là où les Tags concernent des
     # attributs divers (spécialité, langue, etc.) utiles pour l'usager·e
     catid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=1024)
+    nom = models.CharField(max_length=1024, help_text="Nom de la catégorie (français)")
+    nom_en = models.CharField(max_length=1024, help_text="Nom de la catégorie (anglais)", blank=True)
     parent = models.ManyToManyField("Categorie")
 
     def __str__(self):
@@ -110,7 +183,7 @@ class Reponse(models.Model):
     date_modif = models.DateTimeField(auto_now=True)
 
     def get_value(self):
-        rtype = self.question.reponse_type
+        r = self.question.reponse_type
         if r == "t" or r == "l": return self.reponse
         elif r=="e": return int(self.reponse)
         elif r=="f": return float(self.reponse)
@@ -121,9 +194,17 @@ class Reponse(models.Model):
             elif r in ("n", "non", "no", "false", "0"):
                 return False
         elif r=="d":
-            # On assume l'ordre français pour les dates:
-            d,m,y = tuple(int(i) for i in re.split("[/-. ]+", self.reponse.strip()))
-            return date(y,m,d)
+            from juridico.methodes import str2date
+            return str2date(self.reponse.strip())
+
+    def get_html(self):
+        return formfield2html(
+            typ=self.question.reponse_type,
+            name="rep_old_%d" % self.repid,
+            value=self.get_value(),
+            choix=self.question.contenu_liste.split("\n"),
+            disabled=True
+        )
 
 class Requete(models.Model):
     reqid = models.AutoField(primary_key=True)
@@ -136,7 +217,7 @@ class Requete(models.Model):
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
 
     def get_desc_vector(self):
-        from juridico.methodes import txt2text2vec
+        from juridico.methodes import text2vec
         if self.description_vec == None:
             self.description_vec = text2vec(self.description_cas)
         return self.description_vec
@@ -149,7 +230,8 @@ class Requete(models.Model):
 
 class Ressource(models.Model):
     resid = models.AutoField(primary_key=True, unique=True)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True, help_text="Description de la ressource (français)")
+    description_en = models.TextField(blank=True, help_text="Description de la ressource (anglais)")
     tags = models.ManyToManyField("Tag", blank=True)
     commentaires = models.TextField(blank=True)
     type_classe = models.CharField(max_length=32, default="", blank=True)
@@ -158,12 +240,18 @@ class Ressource(models.Model):
         abstract = True
 
 class Organisation(Ressource):
-    nom = models.CharField(max_length=256)
-    url = models.CharField(max_length=1024, blank=True)
+    nom = models.CharField(max_length=256, help_text="Nom de l'organisme (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom de l'organisme (anglais)", blank=True)
+    url = models.CharField(max_length=1024, blank=True, help_text="URL de l'organisme (français)")
+    url_en = models.CharField(max_length=1024, blank=True, help_text="URL de l'organisme (anglais)")
     code_postal = models.CharField(
-        max_length=6,
+        max_length=7,
         blank=True,
-        help_text = "Sert à géolocaliser"
+        help_text = "Sert à géolocaliser.",
+        validators = [RegexValidator(
+            regex = r"^[A-Z][0-9][A-Z] ?[0-9][A-Z][0-9]$",
+            message = "Format invalide pour un code postal. Le format est: X0X 0X0, où X est une lettre et 0 un chiffre."
+        )]
     )
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
@@ -174,12 +262,23 @@ class Organisation(Ressource):
         blank=True,
         help_text = "Par exemple, pour un·e avocat·e ou notaire, son cabinet."
     )
+    appartenance_en = models.CharField(
+        max_length=1024,
+        blank=True,
+        help_text = "Par exemple, pour un·e avocat·e ou notaire, son cabinet."
+    )
     telephone = models.CharField(max_length=64, blank=True)
     telecopieur = models.CharField(max_length=64, blank=True)
     heures_ouverture = models.TextField(blank=True)
+    heures_ouverture_en = models.TextField(blank=True)
 
     def __str__(self):
         return f"({self.resid}) {self.nom}"
+
+    def get_code_postal(self):
+        "Retourne le code postal, format X0X0X0."
+        if self.code_postal != None:
+            return re.sub("\s+", "", self.code_postal.upper())
 
     def to_resultats(self):
         return item_html.format(
@@ -189,18 +288,21 @@ class Organisation(Ressource):
             extra_class=" organisation"
         )
 
-    def distance2pt(self, lat, long):
+    def coords2dist(self, lat, long):
         "En km."
-        if self.latitude == None or org.longitude == None:
+        if self.latitude == None or long == None:
             return None
         else:
             return vincenty((self.latitude,self.longitude),(lat,long)).km
 
 class Documentation(Ressource):
-    nom = models.CharField(max_length=256)
-    url = models.CharField(max_length=1024)
+    nom = models.CharField(max_length=256, help_text="Nom du document (français)")
+    url = models.CharField(max_length=102, help_text="URL du document (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom du document (anglais)", blank=True)
+    url_en = models.CharField(max_length=1024, help_text="URL du document (anglais)", blank=True)
     artid_educaloi = models.IntegerField(blank=True, null=True)
     categorie_educaloi = models.CharField(max_length=256, blank=True, null=True)
+    categorie_educaloi_en = models.CharField(max_length=256, blank=True, null=True)
     nom_source = models.ForeignKey("DocuSource", blank=True, null=True, on_delete=models.SET_NULL)
 
     def to_resultats(self):
@@ -229,15 +331,16 @@ class CategDocumentation(models.Model):
 
 class DocuSource(models.Model):
     dcid = models.AutoField(primary_key=True)
-    nom = models.CharField(max_length=256)
-    url = models.CharField(max_length=1024, blank=True, null=True)
+    nom = models.CharField(max_length=256, help_text="Nom de la source (français)")
+    nom_en = models.CharField(max_length=256, help_text="Nom de la source (anglais)", blank=True)
+    url = models.CharField(max_length=1024, blank=True, null=True, help_text="Nom de la source (français)")
+    url_en = models.CharField(max_length=1024, blank=True, null=True, help_text="Nom de la source (anglais)")
 
     def __str__(self):
         return "(%d) %s" % (self.dcid, self.nom)
 
 class Camarade(Ressource):
     client = models.ForeignKey("Client", on_delete=models.CASCADE)
-    code_postal = models.CharField(max_length=6, blank=True)
 
     def to_resultats(self):
         return item_html.format(
@@ -265,11 +368,12 @@ class Direction(Ressource):
             from juridico.methodes import get_valeur
             vs = self.variables.split()
             d = dict(
-                (v, get_valeur(requete, v)) for v in vs
+                (v, get_valeur(requete, v, "")) for v in vs
+                if "{%s}" %v in self.description
             )
-            desc = self.description.format(*d)
+            desc = self.description.format(**d)
         else:
-            desc=self.description
+            desc = self.description
         return desc
 
     def to_resultats(self):
@@ -291,9 +395,21 @@ class RessourceDeRequete(models.Model):
     rrid = models.AutoField(primary_key=True)
     requete = models.ForeignKey("Requete", on_delete=models.CASCADE)
     resid = models.IntegerField(default=-1)
-    poid = models.FloatField(default=0.)
+    poids = models.FloatField(default=0.)
     distance = models.FloatField(null=True, blank=True)
     type_classe = models.CharField(max_length=32, default="", blank=True)
 
     def get_ressource(self):
-        return Ressource.objects.get(resid=self.resid)
+        if self.type_classe == "Documentation":
+            return Documentation.objects.get(resid=self.resid)
+        elif self.type_classe == "Organisation":
+            return Organisation.objects.get(resid=self.resid)
+        elif self.type_classe == "Direction":
+            return Direction.objects.get(resid=self.resid)
+
+    def __str__(self):
+        reqid = self.requete.reqid
+        res = self.get_ressource()
+        desc=res.description if res != None else ""
+        typ =  self.type_classe
+        return f"[{reqid}] {typ}: {desc}"

@@ -1,0 +1,98 @@
+<!DOCTYPE html> {% load static %}
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Juridico</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css">
+  <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.4/semantic.min.css" rel="stylesheet" type="text/css" />
+<link href="https://cdn.rawgit.com/mdehoog/Semantic-UI-Calendar/76959c6f7d33a527b49be76789e984a0a407350b/dist/calendar.min.css" rel="stylesheet" type="text/css" />
+<script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.4/semantic.min.js"></script>
+<script src="https://cdn.rawgit.com/mdehoog/Semantic-UI-Calendar/76959c6f7d33a527b49be76789e984a0a407350b/dist/calendar.min.js"></script>
+
+<app-root _nghost-c0="" ng-version="5.2.7">
+</head>
+
+<body>
+
+
+  <app-root _nghost-c0="" ng-version="5.2.7">
+    <app-interface _ngcontent-c0="" _nghost-c1="">
+      <h1 style="text-align: center">
+            <img src="{% static "juridico_mot.png" %}" alt="Logo Juridico" style="height:2in; margin: 2cm auto 0.5cm auto">
+        </h1>
+      <div class="question-list" style="margin: 1cm auto 3cm auto">
+        <app-question _ngcontent-c1="" _nghost-c2="" ng-reflect-idx="1">
+          <div _ngcontent-c2="" class="ui raised container segment">
+            <form action="/juridico/antique/questions" method="post"_ngcontent-c2="" class="ui form ng-untouched ng-pristine" novalidate="" >
+                <div>Entrez une description de votre problème juridique&nbsp;:</div>
+                {% csrf_token %}
+                <input type="hidden" name="cid" value="{{ client.cid }}">
+                <input type="hidden" name="qnum" value="0">
+                <textarea name="description_cas" rows="8" cols="80" {{ q0actif }}>{% if qnum > 0 %}{{requete.description_cas}}{% endif%}</textarea>
+                <div>
+                  <input type="submit" name="Soumettre" {{ q0actif }}>
+                </div>
+            </form>
+          </div>
+        </app-question>
+        {% for r in reponses %}
+        <app-question _ngcontent-c1="" _nghost-c2="" ng-reflect-idx="1">
+          <div _ngcontent-c2="" class="ui raised container segment">
+            <div class="qdone">
+              <form _ngcontent-c2="" class="ui form ng-untouched ng-pristine" novalidate="">
+                  <div>{{r.question.question}}</div>
+                  {{r.get_html|safe}}
+                  <div>
+                    <input type="submit" name="Soumettre" disabled>
+                  </div>
+              </form>
+            </div>
+          </div>
+        </app-question>
+        {% endfor %} {% if qnum > 0 %}
+        <app-question _ngcontent-c1="" _nghost-c2="" ng-reflect-idx="1">
+          <div _ngcontent-c2="" class="ui raised container segment">
+            <div class="qactive">
+              <form action="/juridico/antique/questions" method="post" _ngcontent-c2="" class="ui form ng-untouched ng-pristine" novalidate="">
+                {% csrf_token %}
+                  <div>{{qactive.question}}</div>
+                  {{qactive.get_html|safe}}
+                  <input type="hidden" name="qnum" value="{{ qnum }}">
+                  <input type="hidden" name="cid" value="{{ client.cid }}">
+                  <input type="hidden" name="reqid" value="{{ requete.reqid }}">
+                  <div>
+                    <input type="submit" name="Soumettre">
+                  </div>
+              </form>
+
+            </div>
+            {% endif %}
+          </div>
+        </app-question>
+      </div>
+
+
+        <script>
+        $('#datepicker').calendar({
+          type: 'date',
+          formatter: {
+    date: function (date, settings) {
+      if (!date) return '';
+      var day = date.getDate();
+      var month = date.getMonth() + 1;
+      var year = date.getFullYear();
+      return day + '/' + month + '/' + year;
+    }
+  }
+          });
+          window.scrollTo(0,document.body.scrollHeight);
+        </script>
+
+    </app-interface>
+  </app-root>
+</body>
+
+</html>
