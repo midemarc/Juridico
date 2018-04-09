@@ -1,6 +1,9 @@
 sudo: required
 
-language: python
+#language: python
+
+#python:
+#    - "3.6"
 
 services:
   - docker
@@ -8,6 +11,7 @@ services:
 before_install:
   - docker build -t midemarc/juridico_back .
 
+deploy:
   provider: script
   script: bash docker_push
   on:
