@@ -12,7 +12,7 @@ COPY fake_site/ /backend/fake_site
 COPY juridico_site/ /backend/juridico_site
 COPY README.md /backend/README.md
 COPY remplir_categories_a_partir_de_cappel.ipynb /backend/remplir_categories_a_partir_de_cappel.ipynb
-COPY treetagger-install /backend/treetagger-install 
+COPY treetagger-install /backend/treetagger-install
 
 # For supervisord
 RUN pip install gunicorn
