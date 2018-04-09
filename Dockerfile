@@ -4,12 +4,9 @@ RUN apk add --no-cache supervisor netcat-openbsd gcc python3-dev musl-dev
 RUN echo "http://dl-8.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 RUN apk add --update-cache --no-cache gfortran build-base freetype-dev openblas-dev
 
-#RUN mkdir /backend
-#RUN mkdir /backend/juridico_site/
 WORKDIR /backend/juridico_site
 RUN pip install --upgrade pip
 COPY requirements.txt .
-# RUN pip install -r requirements.txt
 
 RUN pip install boto==2.48.0
 RUN pip install boto3==1.6.17
