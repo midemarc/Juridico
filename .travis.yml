@@ -3,6 +3,8 @@ sudo: required
 services:
   - docker
 
+language: generic
+
 install:
   - docker build -t midemarc/juridico_back .
 
