@@ -6,7 +6,7 @@ services:
 install:
   - docker build -t midemarc/juridico_back .
 
-after_success:
+deploy:
   provider: script
   script: bash docker_push
   on:
