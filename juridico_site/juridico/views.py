@@ -247,7 +247,7 @@ def api_next_question(request):
         raise NotImplementedError('')
     pass
 
-
+@api_view(['GET', 'POST'])
 def api_resultats(request):
     """Retourne les résultats. Trois types de résultats: des org"""
     try:
@@ -265,15 +265,14 @@ def api_resultats(request):
                 ).count()
 
         compte_desire = 10
-        from methodes import get_top_educaloi, add_orgs, add_documentation
 
         if n_orgs < compte_desire:
-            add_orgs(req, conditions=None, topn=compte_desire-n_orgs, poid=0.3)
+            met.add_orgs(req, conditions=None, topn=compte_desire-n_orgs, poids=0.3)
 
         if n_docs < compte_desire:
             v = req.get_desc_vector()
-            for d, o in get_top_educaloi(v,topn=compte_desire-n_docs):
-                add_documentation(req, o.resid, poid=0.3)
+            for d, o in met.get_top_educaloi(v,topn=compte_desire-n_docs):
+                met.add_documentation(req, o.resid, poids=0.3)
 
 
         # Les convertir en json pour les envoyer à angular
@@ -281,10 +280,10 @@ def api_resultats(request):
         docu_objs = DocumentationSerializer(
             [
                 Documentation.objects.get(resid=rr.resid)
-                for rr.resid in RessourceDeRequete.objects.filter(
+                for rr in RessourceDeRequete.objects.filter(
                     type_classe="Documentation",
                     requete=req
-                    ).order_by("poid").desc()
+                    ).order_by("-poids")
             ],
             many=True
         ).data
@@ -295,7 +294,7 @@ def api_resultats(request):
                 for rr in RessourceDeRequete.objects.filter(
                     type_classe="Organisation",
                     requete=req
-                    ).order_by("poid").desc()
+                    ).order_by("-poids")
             ],
             many=True
         ).data
@@ -305,7 +304,7 @@ def api_resultats(request):
                 "resid": o.resid,
                 "description": Direction.objects.get(resid=o.resid).formatted_description(req)
             }
-            for o in RessourceDeRequeteobjects.filter(
+            for o in RessourceDeRequete.objects.filter(
                 type_classe="Direction",
                 requete=req
                 )

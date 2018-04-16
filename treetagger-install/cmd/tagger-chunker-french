@@ -4,9 +4,9 @@
 
 # Set these paths appropriately
 
-BIN=/home/mok/src/treetagger-install/bin
-CMD=/home/mok/src/treetagger-install/cmd
-LIB=/home/mok/src/treetagger-install/lib
+BIN=/home/mok/Sync/Projets/Juridico/Juridico/treetagger-install/bin
+CMD=/home/mok/Sync/Projets/Juridico/Juridico/treetagger-install/cmd
+LIB=/home/mok/Sync/Projets/Juridico/Juridico/treetagger-install/lib
 
 OPTIONS1="-token -lemma -sgml"
 OPTIONS2="-token -sgml -eps 0.00000001 -hyphen-heuristics -quiet"

@@ -15,6 +15,7 @@ import re
 from geopy.distance import vincenty
 from django.db.models import Q
 from datetime import datetime
+import os
 
 vec = np.load(BASE_DIR+"/juridico/vecteurs_juridico.npz")
 mots = list(vec["mots"])
@@ -115,7 +116,10 @@ def rd_gte(r1, r2):
 
 def text2vec(description_cas):
     "Convertit du texte en vecteur sur l'espace du modèle Doc2Vec d2v"
-    tagger = TreeTagger(TAGLANG="fr")
+
+    ttroot = os.path.abspath(os.path.join(os.getcwd(), "treetagger-install"))
+
+    tagger = TreeTagger(TAGLANG="fr", TAGDIR=ttroot)
     t = [ ln.split("\t") for ln in tagger.tag_text(description_cas.lower()) ]
     t = [ i[2] for i in t if len(i)==3 ]
     t = [ i for i in t for i in d2v.wv.index2entity ]
@@ -128,7 +132,13 @@ def desc2domaine(description_cas, dom_logement=1, dom_famille=9):
     TODO: remplacer par une fonction qui utilise les doc2vec (je fais pas trop
     confiance au nearest neighbor — c'est presque toujours le pire classifieur)
     """
-    tagger = TreeTagger(TAGLANG="fr")
+
+    ttroot = os.path.abspath(os.path.join(os.getcwd(), "treetagger-install"))
+
+    tagger = TreeTagger(
+        TAGLANG="fr",
+        TAGDIR=ttroot
+    )
     v = np.zeros(len(mots))
     t = [ ln.split("\t") for ln in tagger.tag_text(description_cas) ]
     t = [ i[2] for i in t if len(i)==3 ]
@@ -169,14 +179,14 @@ def add_ressource(requete, ressource, poids=1.0, typ="", distance=None):
     )
     q.save()
 
-def add_documentation(requete,resid):
-    add_ressource(requete, Documentation.objects.get(resid=resid), typ="Documentation")
+def add_documentation(requete,resid, poids=1.0):
+    add_ressource(requete, Documentation.objects.get(resid=resid), typ="Documentation", poids=poids)
 
-def add_direction(requete,resid):
-    add_ressource(requete, Direction.objects.get(resid=resid), typ="Direction")
+def add_direction(requete,resid, poids=1.0):
+    add_ressource(requete, Direction.objects.get(resid=resid), typ="Direction", poids=poids)
 
-def add_organisation(requete,resid, distance=None):
-    add_ressource(requete, Organisation.objects.get(resid=resid), typ="Organisation", distance=distance)
+def add_organisation(requete,resid, distance=None, poids=1.0):
+    add_ressource(requete, Organisation.objects.get(resid=resid), typ="Organisation", distance=distance, poids=poids)
 
 def add_orgs(requete, conditions, topn=10, poids=1.0):
     lat = requete.client.latitude
