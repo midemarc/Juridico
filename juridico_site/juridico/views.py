@@ -264,8 +264,8 @@ def api_resultats(request):
                 requete=req
                 ).count()
 
-        compte_desire_docu = request.GET.get("compte_desire_docu",10)
-        compte_desire_orgs = request.GET.get("compte_desire_orgs",10)
+        compte_desire_docu = int(request.GET.get("compte_desire_docu",10))
+        compte_desire_orgs = int(request.GET.get("compte_desire_orgs",10))
 
         if n_orgs < compte_desire:
             met.add_orgs(req, conditions=None, topn=compte_desire-n_orgs, poids=0.3)
