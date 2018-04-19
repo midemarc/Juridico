@@ -321,6 +321,25 @@ def api_resultats(request):
 
     pass
 
+def api_nouv_requete(request, cid=None):
+    """
+    Crée une nouvelle requête
+
+    :return: un Json avec une entrée "requete_id" qui correspond à l'id de la
+    requete crée.
+    """
+    dat = getattr(request, request.method)
+    pcid = cid if cid != None else dat.get("cid")
+    pcid = 1 if pcid == None or pcid == '' else pcid
+    client = Client.objects.get(cid=int(pcid))
+
+    req = Requete.objects.create(
+        description_cas = dat.get("description_cas"),
+        client = client,
+        ip = get_client_ip(request)
+    )
+    req.save()
+
 def antique_question(request, cid=None):
     dat = getattr(request, request.method)
     pcid = cid if cid != None else dat.get("cid")
