@@ -340,6 +340,10 @@ def api_nouv_requete(request, cid=None):
     )
     req.save()
 
+    return JsonResponse({
+        "requete_id": req.reqid
+    })
+
 def antique_question(request, cid=None):
     dat = getattr(request, request.method)
     pcid = cid if cid != None else dat.get("cid")
