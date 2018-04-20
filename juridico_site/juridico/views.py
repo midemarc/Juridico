@@ -267,12 +267,12 @@ def api_resultats(request):
         compte_desire_docu = int(request.GET.get("compte_desire_docu",10))
         compte_desire_orgs = int(request.GET.get("compte_desire_orgs",10))
 
-        if n_orgs < compte_desire:
-            met.add_orgs(req, conditions=None, topn=compte_desire-n_orgs, poids=0.3)
+        if n_orgs < compte_desire_orgs:
+            met.add_orgs(req, conditions=None, topn=compte_desire_orgs-n_orgs, poids=0.3)
 
-        if n_docs < compte_desire:
+        if n_docs < compte_desire_docu:
             v = req.get_desc_vector()
-            for d, o in met.get_top_educaloi(v,topn=compte_desire-n_docs):
+            for d, o in met.get_top_educaloi(v,topn=compte_desire_docu-n_docs):
                 met.add_documentation(req, o.resid, poids=0.3)
 
 
