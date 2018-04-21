@@ -54,7 +54,8 @@ class OrganisationSerializer(serializers.ModelSerializer):
             'courriel',
             'telephone',
             'telecopieur',
-            'heures_ouverture'
+            'heures_ouverture',
+            'tags'
         )
 
 class DirectionSerializer(serializers.ModelSerializer):
