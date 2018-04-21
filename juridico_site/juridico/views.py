@@ -289,14 +289,19 @@ def api_resultats(request):
             many=True
         ).data
 
+
+        orgs = [
+            Organisation.objects.get(resid=rr.resid)
+            for rr in RessourceDeRequete.objects.filter(
+                type_classe="Organisation",
+                requete=req
+                ).order_by("-poids")
+        ]
+        orgs_avocat = [ i for i in orgs if i.tags.filter(pk=11).count() > 0 ]
+        orgs_autres = [ i for i in orgs if i.tags.filter(pk=11).count() == 0 ]
+
         org_objs = OrganisationSerializer(
-            [
-                Organisation.objects.get(resid=rr.resid)
-                for rr in RessourceDeRequete.objects.filter(
-                    type_classe="Organisation",
-                    requete=req
-                    ).order_by("-poids")
-            ],
+            orgs_avocat + orgs_autres,
             many=True
         ).data
 
