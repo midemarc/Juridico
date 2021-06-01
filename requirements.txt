@@ -22,7 +22,7 @@ six==1.11.0
 smart-open==1.5.7
 treetaggerwrapper==2.2.3
 typing==3.6.4
-urllib3==1.22
+urllib3==1.26.5
 
 numpy==1.14.1
 
